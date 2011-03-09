@@ -1,5 +1,9 @@
 import os, sys
 
+def parse_error(path, lineno, msg):
+    sys.stderr.write('%s:%d: %s\n'%(path, lineno, msg))
+    sys.exit(os.EX_DATAERR)
+
 class TconfCustomVisitor(object):
     def __init__(self):
 	self.section_name = None
@@ -63,9 +67,17 @@ def _get_args(preargs):
 def load_tconf(path, visitor):
     fh = open(path)
     section_name = None
-    for ln in fh:
+    lineno = 0
+    while True:
+	ln = fh.readline()
+	if ln == '':
+	    break
+	lineno += 1
 	if ln.isspace() or ln.strip().startswith('#'):
 	    continue
+	while ln.endswith('\\\n'):
+	    lineno += 1
+	    ln = ln[:-2] + fh.readline()
 	words = ln.split()
 	keyword = words[0]
 	args, kwargs = _get_args(words[1:])
