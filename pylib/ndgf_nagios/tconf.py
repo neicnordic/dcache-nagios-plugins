@@ -45,7 +45,7 @@ class TconfTemplateVisitor(TconfCustomVisitor):
 	templ = fh.read()
 	fh.close()
 	def f(self, *args, **kwargs):
-	    for k, v in formal_kwargs:
+	    for k, v in formal_kwargs.iteritems():
 		if not k in kwargs:
 		    kwargs[k] = v
 	    for k, v in zip(formal_args, args):
