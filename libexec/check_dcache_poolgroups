@@ -37,10 +37,13 @@ def check_poolgroup(g, args, nagcmd_fh):
 
     # Check for high heartbeat if requested.
     if args.heartbeat_limit[0] or args.heartbeat_limit[1]:
-	hc_count = hw_count = 0
-	hc_pools = hw_pools = []
+	hc_count = hw_count = ro_count = 0
+	hc_pools = hw_pools = ro_pools = []
 	for pn in g.poolrefs:
 	    p = ps[pn]
+	    if p.read_only:
+		ro_count += 1
+		ro_pools.append(p.name)
 	    if args.heartbeat_limit[0] \
 		    and p.last_heartbeat > args.heartbeat_limit[0]:
 		hc_count += 1
@@ -50,21 +53,21 @@ def check_poolgroup(g, args, nagcmd_fh):
 		hw_count += 1
 		hw_pools.append(p.name)
 	r = rs[args.heartbeat_service]
-	if hc_count > 0:
+	def report_pools(count, pools, retcode, msg):
+	    if count > 0:
+		r.retcode = retcode
+		if args.list_pools:
+		    r.msgs.append('%s %s (%s)'%(counted_noun(count, 'pool'),
+						msg, ', '.join(pools)))
+		else:
+		    r.msgs.append('%s %s'%counted_noun(count, 'pool'), msg)
+	report_pools(hc_count, hc_pools, 2, 'with critical heartbeat')
+	report_pools(hw_count, hw_pools, 1, 'with high heartbeat')
+	if ro_count == len(g.poolrefs):
 	    r.retcode = 2
-	    if args.list_pools:
-		r.msgs.append('%s with critical heartbeat (%s)'
-			%(counted_noun(hc_count, 'pool'), ', '.join(hc_pools)))
-	    else:
-		r.msgs.append('%s with critical heartbeat'
-			%counted_noun(hc_count, 'pool'))
-	if hw_count > 0:
-	    r.retcode = max(r.retcode, 1)
-	    if args.list_pools:
-		r.msgs.append('%d pools with high heartbeat (%s)'
-			%(hw_count, ', '.join(hw_pools)))
-	    else:
-		r.msgs.append('%d pools with high heartbeat'%hw_count)
+	    r.msgs.append('all %d pools are read-only'%ro_count)
+	else:
+	    report_pools(ro_count, ro_pools, 1, 'are read-only')
 
     # Check utilization.
     def check_space(r, rlimit, alimit, free_space, retcode, msg):

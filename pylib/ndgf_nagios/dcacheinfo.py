@@ -1,3 +1,4 @@
+import urllib
 from ndgf_nagios.utils import dmap
 try: from xml.etree import cElementTree as etree
 except ImportError:
@@ -65,7 +66,8 @@ def _scan_metric(metric_elt):
     return (metric_elt.get('name'), x)
 
 def load_pools(url):
-    doc = etree.parse(url)
+    fh = urllib.urlopen(url)
+    doc = etree.parse(fh)
     for e_p in doc.findall('.//' + DCACHE.pools + '/' + DCACHE.pool):
 	name = e_p.get('name')
 	metrics = dmap(_scan_metric, e_p.findall(DCACHE.metric))
@@ -76,9 +78,11 @@ def load_pools(url):
 	p.poolgrouprefs = [e.get('name') for e in
 		e_p.findall(DCACHE.poolgroups + '/' + DCACHE.poolgroupref)]
 	yield p
+    fh.close()
 
 def load_poolgroups(url):
-    doc = etree.parse(url)
+    fh = urllib.urlopen(url)
+    doc = etree.parse(fh)
     for e_g in doc.findall('.//' + DCACHE.poolgroup):
 	name = e_g.get('name')
 	linkrefs = [e.get('name') for e in
@@ -93,3 +97,4 @@ def load_poolgroups(url):
 	pg.precious_space = space['precious']
 	pg.used_space = space['used']
 	yield pg
+    fh.close()
