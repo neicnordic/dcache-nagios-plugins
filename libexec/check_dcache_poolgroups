@@ -5,7 +5,8 @@
 # and non-precious space.
 
 import argparse, os, sys, time, traceback
-from ndgfnagios.utils import size_float, show_size, FreeObject, counted_noun
+from ndgfnagios.utils import size_float, show_size, FreeObject
+from ndgfnagios.utils import counted_noun, plcase
 from ndgfnagios.dcacheinfo import load_poolgroups, load_pools
 
 def cwpair(t):
@@ -22,20 +23,26 @@ def check_poolgroup(g, args, nagcmd_fh):
     nonprecious = g.total_space - g.precious_space
     rs = {}
 
+    def statusobject():
+	return FreeObject(retcode = 0, okmsgs = [], msgs = [])
+
     if args.free_enabled:
-	r = rs[args.free_service] = FreeObject(retcode = 0, msgs = [])
+	r = rs[args.free_service] = statusobject()
 	if g.total_space:
-	    r.msgs.append('%s (%.2g) free' %
+	    r.okmsgs.append('%s (%.2g) free' %
 		(show_size(g.free_space), g.free_space / float(g.total_space)))
     if args.nonprecious_enabled:
 	if not args.nonprecious_service in rs:
-	    r = rs[args.nonprecious_service] = FreeObject(retcode = 0, msgs = [])
+	    rs[args.nonprecious_service] = statusobject()
+	r = rs[args.nonprecious_service]
 	if g.total_space and g.precious_space:
-	    r.msgs.append('%s (%.2g) nonprecious' %
+	    r.okmsgs.append('%s (%.2g) nonprecious' %
 		(show_size(nonprecious), nonprecious / float(g.total_space)))
     if args.heartbeat_enabled:
 	if not args.heartbeat_service in rs:
-	    rs[args.heartbeat_service] = FreeObject(retcode = 0, msgs = [])
+	    rs[args.heartbeat_service] = statusobject()
+	rs[args.heartbeat_service].okmsgs.append(
+		'Group of ' + counted_noun(len(g.poolrefs), 'pool'))
 
     # Check for high heartbeat if requested.
     if args.heartbeat_enabled:
@@ -55,21 +62,27 @@ def check_poolgroup(g, args, nagcmd_fh):
 		hw_count += 1
 		hw_pools.append(p.name)
 	r = rs[args.heartbeat_service]
-	def report_pools(count, pools, retcode, msg):
+	def report_pools(count, pools, retcode, msg_s, msg_pl):
 	    if count > 0:
 		r.retcode = retcode
+		msg = plcase(count, msg_s, msg_pl)
 		if args.list_pools:
-		    r.msgs.append('%s %s (%s)'%(counted_noun(count, 'pool'),
-						msg, ', '.join(pools)))
+		    r.msgs.append('%s: %s'%(msg, ', '.join(pools)))
 		else:
-		    r.msgs.append('%s %s'%(counted_noun(count, 'pool'), msg))
-	report_pools(hc_count, hc_pools, 2, 'with critical heartbeat')
-	report_pools(hw_count, hw_pools, 1, 'with high heartbeat')
+		    r.msgs.append(msg)
+	report_pools(hc_count, hc_pools, 2,
+		'%(count)d pool has critical heartbeat',
+		'%(count)d pools have critical heartbeat')
+	report_pools(hw_count, hw_pools, 1,
+		'%(count)d pool has high heartbeat',
+		'%(count)d pools have critical heartbeat')
 	if ro_count == len(g.poolrefs):
 	    r.retcode = 2
-	    r.msgs.append('all %d pools are read-only'%ro_count)
+	    r.msgs.append('all pools are read-only')
 	else:
-	    report_pools(ro_count, ro_pools, 1, 'are read-only')
+	    report_pools(ro_count, ro_pools, 1,
+		'%d pool is read-only',
+		'%d pools are read-only')
 
     # Check utilization.
     def check_space(r, rlimit, alimit, free_space, retcode, msg):
@@ -87,36 +100,37 @@ def check_poolgroup(g, args, nagcmd_fh):
 	if args.free_enabled:
 	    check_space(rs[args.free_service],
 			args.free_rlimit[0], args.free_alimit[0], g.free_space,
-			2, 'free space is critical') or \
+			2, 'Free space is critical') or \
 	    check_space(rs[args.free_service],
 			args.free_rlimit[1], args.free_alimit[1], g.free_space,
-			1, 'free space is low')
+			1, 'Free space is low')
 	if args.nonprecious_enabled:
 	    check_space(rs[args.nonprecious_service],
 			args.nonprecious_rlimit[0], args.nonprecious_alimit[0],
 			nonprecious,
-			2, 'non-precious space is critical') or \
+			2, 'Non-precious space is critical') or \
 	    check_space(rs[args.nonprecious_service],
 			args.nonprecious_rlimit[1], args.nonprecious_alimit[1],
 			nonprecious,
-			1, 'non-precious space is low')
+			1, 'Non-precious space is low')
     else:
 	if args.free_enabled or args.nonprecious_enabled:
 	    for s in set([args.free_service, args.nonprecious_service]):
 		rs[s].retcode = 1
-		rs[s].msgs.append('empty poolgroup')
+		rs[s].msgs.append('No space allocated.')
 
     # Submit passive result.
     t = int(time.time())
     for ssfx, r in rs.iteritems():
-	if r.msgs == []:
-	    msg = 'Poolgroup is ok'
-	else:
-	    msg = ', '.join(r.msgs)
-	msg += '.'
+	msg = ''
+	if r.okmsgs:
+	    msg = ', '.join(r.okmsgs) + '. '
+	if r.msgs:
+	    msg += ', '.join(r.msgs) + '.'
 	nagcmd_fh.write(
 		'[%d] PROCESS_SERVICE_CHECK_RESULT;%s;%s;%d;%s\n' \
-		% (t, args.host, g.name + ssfx, r.retcode, msg))
+		% (t, args.host, g.name + ssfx, r.retcode,
+		   msg.strip() or 'Poolgroup is ok.'))
 	service_count += 1
     return service_count
 

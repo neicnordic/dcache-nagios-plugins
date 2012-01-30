@@ -101,3 +101,10 @@ def counted_noun(count, sing_word, pl_word = None):
 	return '%d %s'%(count, sing_word)
     else:
 	return '%d %s'%(count, pl_word or sing_word + 's')
+
+def plcase(count, s, pl):
+    d = dict(count = count)
+    if count == 1:
+	return s%d
+    else:
+	return pl%d
