@@ -1,0 +1,190 @@
+#! /usr/bin/env python
+#
+# Nagios probe to check dCache pool groups and submit results to passive
+# services.  Checks performed include heartbeats of member pools, free space,
+# and non-precious space.
+
+import argparse, os, sys, time
+from ndgf_nagios.utils import size_float, show_size, FreeObject, counted_noun
+from ndgf_nagios.dcacheinfo import load_poolgroups, load_pools
+
+def cwpair(t):
+    def f(s):
+	if ',' in s:
+	    s0, s1 = s.split(',', 1)
+	    return s0 and t(s0), s1 and t(s1)
+	else:
+	    return t(s), None
+    return f
+
+def check_poolgroup(g, args, nagcmd_fh):
+    service_count = 0
+    nonprecious = g.total_space - g.precious_space
+    rs = {}
+    xmsgs = []
+
+    if args.free_enabled:
+	rs[args.free_service] = FreeObject(retcode = 0, msgs = [])
+	if g.total_space:
+	    xmsgs.append('%s (%.2f) free' %
+		    (show_size(g.free_space), g.free_space / g.total_space))
+    if args.nonprecious_enabled:
+	rs[args.nonprecious_service] = FreeObject(retcode = 0, msgs = [])
+	if g.total_space and g.precious_space:
+	    xmsgs.append('%s (%.2f) nonprecious' %
+		    (show_size(nonprecious), nonprecious / g.total_space))
+    rs[args.heartbeat_service] = FreeObject(retcode = 0, msgs = [])
+
+    # Check for high heartbeat if requested.
+    if args.heartbeat_limit[0] or args.heartbeat_limit[1]:
+	hc_count = hw_count = 0
+	hc_pools = hw_pools = []
+	for pn in g.poolrefs:
+	    p = ps[pn]
+	    if args.heartbeat_limit[0] \
+		    and p.last_heartbeat > args.heartbeat_limit[0]:
+		hc_count += 1
+		hc_pools.append(p.name)
+	    elif args.heartbeat_limit[1] \
+		    and p.last_heartbeat > args.heartbeat_limit[1]:
+		hw_count += 1
+		hw_pools.append(p.name)
+	r = rs[args.heartbeat_service]
+	if hc_count > 0:
+	    r.retcode = 2
+	    if args.list_pools:
+		r.msgs.append('%s with critical heartbeat (%s)'
+			%(counted_noun(hc_count, 'pool'), ', '.join(hc_pools)))
+	    else:
+		r.msgs.append('%s with critical heartbeat'
+			%counted_noun(hc_count, 'pool'))
+	if hw_count > 0:
+	    r.retcode = max(r.retcode, 1)
+	    if args.list_pools:
+		r.msgs.append('%d pools with high heartbeat (%s)'
+			%(hw_count, ', '.join(hw_pools)))
+	    else:
+		r.msgs.append('%d pools with high heartbeat'%hw_count)
+
+    # Check utilization.
+    def check_space(r, rlimit, alimit, free_space, retcode, msg):
+	c0 = c1 = args.conjunct
+	if not rlimit is None:
+	    c0 = free_space < rlimit*g.total_space
+	if not alimit is None:
+	    c1 = free_space < alimit
+	if c0 and c1 or (not args.conjunct and (c0 or c1)):
+	    r.retcode = max(r.retcode, retcode)
+	    r.msgs.append(msg)
+	    return True
+	return False
+    if g.total_space > 0:
+	if args.free_enabled:
+	    check_space(rs[args.free_service],
+			args.free_rlimit[0], args.free_alimit[0], g.free_space,
+			2, 'free space is critical') or \
+	    check_space(rs[args.free_service],
+			args.free_rlimit[1], args.free_alimit[1], g.free_space,
+			1, 'free space is low')
+	if args.nonprecious_enabled:
+	    check_space(rs[args.nonprecious_service],
+			args.nonprecious_rlimit[0], args.nonprecious_alimit[0],
+			nonprecious,
+			2, 'non-precious space is critical') or \
+	    check_space(rs[args.nonprecious_service],
+			args.nonprecious_rlimit[1], args.nonprecious_alimit[1],
+			nonprecious,
+			1, 'non-precious space is low')
+    else:
+	if args.free_enabled or args.nonprecious_enabled:
+	    for s in set([args.free_service, args.nonprecious_service]):
+		rs[s].retcode = 1
+		rs[s].msgs.append('empty poolgroup')
+
+    # Submit passive result.
+    t = int(time.time())
+    for ssfx, r in rs.iteritems():
+	if r.msgs == []:
+	    msg = 'Poolgroup is ok'
+	else:
+	    msg = ', '.join(r.msgs).capitalize()
+	if xmsgs:
+	    msg += ', ' + ', '.join(xmsgs)
+	msg += '.'
+	nagcmd_fh.write(
+		'[%d] PROCESS_SERVICE_CHECK_RESULT;%s;%s;%d;%s\n' \
+		% (t, args.host, g.name + ssfx, r.retcode, msg))
+	service_count += 1
+    return service_count
+
+ap = argparse.ArgumentParser()
+ap.add_argument('-H', dest = 'host', required = True,
+	help = 'Target host for passive results.')
+ap.add_argument('-U', dest = 'url',
+	help = 'The info URL under which to make queries.')
+ap.add_argument('-a', dest = 'all', action = 'store_true', default = False,
+	help = 'Check all poolgroups.')
+
+ap.add_argument('-A', dest = 'conjunct', action = 'store_true', default = False,
+	help = 'If absolute and relative limits are given, trigger only if '
+	       'both fails.  By default, trigger when either fail.')
+
+ap.add_argument('--free-service', default = '',
+	metavar = 'SERVICE_SUFFIX',
+	help = 'Target service suffix for reporting low free space')
+ap.add_argument('--free-alimit',
+	type = cwpair(size_float), default = (None, None),
+	metavar = 'CW_SIZE',
+	help = 'Min. advisable free space')
+ap.add_argument('--free-rlimit',
+	type = cwpair(float), default = (None, None),
+	metavar = 'CW_RATIO',
+	help = 'Min. advisable free space relative to the total')
+
+ap.add_argument('--nonprecious-service', default = '',
+	metavar = 'SERVICE_SUFFIX',
+	help = 'Target service suffix for reporting low non-precious space.')
+ap.add_argument('--nonprecious-alimit',
+	type = cwpair(size_float), default = (None, None),
+	metavar = 'CW_SIZE',
+	help = 'Min. available non-specious space.')
+ap.add_argument('--nonprecious-rlimit',
+	type = cwpair(float), default = (None, None),
+	metavar = 'CW_RATIO',
+	help = 'Min. available non-specious space relative to total.')
+
+ap.add_argument('--heartbeat-service', default = '',
+	metavar = 'SERVICE_SUFFIX',
+	help = 'Target service suffix for reporting heartbeat.')
+ap.add_argument('--heartbeat-limit', dest = 'heartbeat_limit',
+	type = cwpair(float), default = (None, None),
+	metavar = 'CW_TIME',
+	help = 'critical[,warning]: Max advisable heartbeat.')
+ap.add_argument('--list-pools', action = 'store_true', default = False,
+	help = 'List pools with critical or high heartbeat.')
+
+args = ap.parse_args()
+args.free_enabled        = args.free_alimit        or args.free_rlimit
+args.nonprecious_enabled = args.nonprecious_alimit or args.nonprecious_rlimit
+
+# Open stream for submitting passive result.
+nagcmd_path = os.getenv('NAGIOS_COMMANDFILE')
+if nagcmd_path:
+    nagcmd_fh = open(nagcmd_path, 'w')
+else:
+    nagcmd_fh = sys.stdout
+
+# Check pool groups.
+gs = load_poolgroups(args.url + '/poolgroups')
+if args.heartbeat_limit[0] or args.heartbeat_limit[1]:
+    ps = dict((p.name, p) for p in load_pools(args.url + '/pools'))
+service_count = 0
+gcount = 0
+for g in gs:
+    service_count += check_poolgroup(g, args, nagcmd_fh)
+    gcount += 1
+
+if nagcmd_path:
+    nagcmd_fh.close()
+print 'Reported %d poolgroups to %d services.'%(gcount, service_count)
+sys.exit(0)
