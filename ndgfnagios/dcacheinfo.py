@@ -1,5 +1,5 @@
 import urllib
-from ndgf_nagios.utils import dmap
+from ndgfnagios.utils import dmap
 try: from xml.etree import cElementTree as etree
 except ImportError:
     from xml.etree import ElementTree as etree

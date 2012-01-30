@@ -3,9 +3,9 @@ import os, sys
 from getopt import gnu_getopt, GetoptError
 _bindir = os.path.dirname(__file__)
 _pyver = "%d.%d"%sys.version_info[0:2]
-sys.path.insert(0, os.path.join(_bindir, '../lib/python%s'%_pyver))
-sys.path.insert(0, os.path.join(_bindir, '../pylib'))
-from ndgf_nagios.tconf import load_tconf, TconfTemplateVisitor
+sys.path.insert(0, os.path.join(_bindir, '../lib/python%s/site-packages'%_pyver))
+sys.path.insert(0, os.path.join(_bindir, '..'))
+from ndgfnagios.tconf import load_tconf, TconfTemplateVisitor
 
 usage = """
 Usage: tconf [OPTIONS] INPUT.tconf
