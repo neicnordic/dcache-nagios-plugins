@@ -43,6 +43,14 @@ class PoolgroupInfo(object):
 
 	self.poolrefs = poolrefs
 
+    @property
+    def available_space(self):
+	return self.removable_space + self.free_space
+
+    @property
+    def nonprecious_space(self):
+	return self.total_space - self.precious_space
+
     def __repr__(self):
 	return 'PoolgroupInfo(%r, %d, %d, %d, %d, %d, {%s}, {%s})' \
 	    %(self.name,
