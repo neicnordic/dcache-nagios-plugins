@@ -5,6 +5,7 @@
 # and non-precious space.
 
 import argparse, os, sys, time, traceback
+from ndgfnagios import tconf
 from ndgfnagios.utils import size_float, show_size, FreeObject
 from ndgfnagios.utils import counted_noun, plcase
 from ndgfnagios.dcacheinfo import load_poolgroups, load_pools
@@ -219,6 +220,9 @@ try:
     ap.add_argument('--list-pools', action = 'store_true', default = False,
 	    help = 'List pools with critical or high heartbeat.')
 
+    ap.add_argument('--check-pools-tconf', metavar = 'PATH',
+	    help = 'Check if PATH lists all the pools in monitored poolgroups.')
+
     args = ap.parse_args()
     args.available_enabled = any(args.available_alimit) \
 			  or any(args.available_rlimit)
@@ -238,7 +242,8 @@ try:
 
     # Check pool groups.
     gs = load_poolgroups(args.url + '/poolgroups')
-    if args.heartbeat_limit[0] or args.heartbeat_limit[1]:
+    if args.heartbeat_limit[0] or args.heartbeat_limit[1] \
+	    or args.check_pools_tconf:
 	ps = dict((p.name, p) for p in load_pools(args.url + '/pools'))
     service_count = 0
     gcount = 0
@@ -250,6 +255,26 @@ try:
     if nagcmd_path:
 	nagcmd_fh.close()
     print 'Reported %d poolgroups to %d services.'%(gcount, service_count)
+
+    # Check pools missing from pools.tconf if requested.
+    if args.check_pools_tconf:
+	visitor = tconf.TconfAccumulatingVisitor()
+	tconf = tconf.load_tconf(args.check_pools_tconf, visitor)
+	calls = visitor.calls.get('pool', []) + visitor.calls.get('poolh', [])
+	tpools = set([poolname for (hostname, poolname), _ in calls])
+	missing = []
+	for p in ps.itervalues():
+	    for gn in p.poolgrouprefs:
+		if not gn in args.exclude:
+		    if not p.name in tpools:
+			missing.append((p.name, gn))
+		break
+	if missing:
+	    print 'Pools missing from %s:'%args.check_pools_tconf
+	    for pn, gn in missing:
+		print '  - %s in group %s'%(pn, gn)
+	    sys.exit(1)
+
     sys.exit(0)
 except Exception, xc:
     print 'Exception: %s'%xc

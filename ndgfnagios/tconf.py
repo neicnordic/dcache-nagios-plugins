@@ -17,10 +17,13 @@ class TconfCustomVisitor(object):
 	assert self.section_name == section_name
 	self.section_name = None
 
-    def invoke(self, macro_name, *args, **kwargs):
+    def _complete(self, kwargs):
 	for k, v in self.defaults.iteritems():
 	    if not k in kwargs:
 		kwargs[k] = v
+
+    def invoke(self, macro_name, *args, **kwargs):
+	self._complete(kwargs)
 	getattr(self, macro_name)(self, *args, **kwargs)
 
     def template(self, name, *formal_args, **formal_kwargs):
@@ -52,6 +55,16 @@ class TconfTemplateVisitor(TconfCustomVisitor):
 		kwargs[k] = v
 	    self.outfile.write(templ % kwargs)
 	setattr(self, name, f)
+
+class TconfAccumulatingVisitor(TconfCustomVisitor):
+    def __init__(self):
+	self.calls = {}
+
+    def invoke(self, macro_name, *args, **kwargs):
+	self._complete(kwargs)
+	if not macro_name in self.calls:
+	    self.calls[macro_name] = []
+	self.calls[macro_name].append((args, kwargs))
 
 def _get_args(preargs):
     args = []
