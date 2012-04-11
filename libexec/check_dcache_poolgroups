@@ -254,27 +254,31 @@ try:
 
     if nagcmd_path:
 	nagcmd_fh.close()
-    print 'Reported %d poolgroups to %d services.'%(gcount, service_count)
 
     # Check pools missing from pools.tconf if requested.
+    missing = []
     if args.check_pools_tconf:
 	visitor = tconf.TconfAccumulatingVisitor()
 	tconf = tconf.load_tconf(args.check_pools_tconf, visitor)
 	calls = visitor.calls.get('pool', []) + visitor.calls.get('poolh', [])
 	tpools = set([poolname for (hostname, poolname), _ in calls])
-	missing = []
 	for p in ps.itervalues():
 	    for gn in p.poolgrouprefs:
 		if not gn in args.exclude:
 		    if not p.name in tpools:
 			missing.append((p.name, gn))
 		    break
-	if missing:
-	    print 'Pools missing from %s:'%args.check_pools_tconf
-	    for pn, gn in missing:
-		print '  - %s in group %s'%(pn, gn)
-	    sys.exit(1)
 
+    if missing:
+	print 'Reported %d poolgroups to %d services, ' \
+	      'found %d unmonitored pools.' \
+	    % (gcount, service_count, len(missing))
+	print 'Pools missing from %s:'%args.check_pools_tconf
+	for pn, gn in missing:
+	    print '  - %s in group %s'%(pn, gn)
+	sys.exit(1)
+
+    print 'Reported %d poolgroups to %d services.'%(gcount, service_count)
     sys.exit(0)
 except Exception, xc:
     print 'Exception: %s'%xc
