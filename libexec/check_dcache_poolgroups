@@ -268,7 +268,7 @@ try:
 		if not gn in args.exclude:
 		    if not p.name in tpools:
 			missing.append((p.name, gn))
-		break
+		    break
 	if missing:
 	    print 'Pools missing from %s:'%args.check_pools_tconf
 	    for pn, gn in missing:
