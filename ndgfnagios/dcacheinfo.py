@@ -88,6 +88,29 @@ def load_pools(url):
 	yield p
     fh.close()
 
+def load_domain_poolnames(info_url):
+    fh = urllib.urlopen(info_url + '/domains')
+    doc = etree.parse(fh)
+    for domain_ele in doc.findall(DCACHE.domains + '/' + DCACHE.domain):
+	dn = domain_ele.get('name')
+	pns = set()
+	for pool_ele in domain_ele.findall(DCACHE.cells + '/' + DCACHE.cell):
+	    for metric_ele in pool_ele.findall(DCACHE.metric):
+		if metric_ele.get('name') == 'class':
+		    if metric_ele.text == 'Pool':
+			pns.add(pool_ele.get('name'))
+		    break
+	if len(pns) > 0:
+	    yield dn, pns
+    fh.close()
+
+def load_domain_of_pool_dict(info_url):
+    return dict((pn, dn) for dn, pns in load_domain_poolnames(info_url)
+			 for pn in pns)
+
+def load_pools_of_domain_dict(info_url):
+    return dict((dn, pns) for dn, pns in load_domain_poolnames(info_url))
+
 def load_poolgroups(url):
     fh = urllib.urlopen(url)
     doc = etree.parse(fh)
