@@ -29,6 +29,10 @@ class TconfCustomVisitor(object):
     def template(self, name, *formal_args, **formal_kwargs):
 	pass
 
+_template_handlers = []
+def reg_template_handler(suffix, handler):
+    _template_handlers.append((suffix, handler))
+
 class TconfTemplateVisitor(TconfCustomVisitor):
 
     def __init__(self, template_dirs = ['.'], outfile = sys.stdout):
@@ -37,23 +41,26 @@ class TconfTemplateVisitor(TconfCustomVisitor):
 	self.outfile = sys.stdout
 
     def template(self, name, *formal_args, **formal_kwargs):
-	path = None
+	found = False
 	for dir in self.template_dirs:
-	    path = os.path.join(dir, name + '.templ')
-	    if os.path.exists(path):
-		break
-	if not path:
-	    raise AttributeError("Unknown template %s.templ"%name)
-	fh = open(path)
-	templ = fh.read()
-	fh.close()
+	    for suffix, handler in _template_handlers:
+		path = os.path.join(dir, name + suffix)
+		if os.path.exists(path):
+		    found = True
+		    break
+	if not found:
+	    suffixes = map(lambda h: h[0], _template_handlers)
+	    raise AttributeError("Cannot find template named %s; scanned dirs "
+				 "%s and suffixes %s."
+		    %(name, ', '.join(self.template_dirs), ', '.join(suffixes)))
+	templ = handler(self, path)
 	def f(self, *args, **kwargs):
 	    for k, v in formal_kwargs.iteritems():
 		if not k in kwargs:
 		    kwargs[k] = v
 	    for k, v in zip(formal_args, args):
 		kwargs[k] = v
-	    self.outfile.write(templ % kwargs)
+	    self.outfile.write(templ(kwargs))
 	setattr(self, name, f)
 
 class TconfAccumulatingVisitor(TconfCustomVisitor):
@@ -73,6 +80,8 @@ def _get_args(preargs):
 	if ':' in arg:
 	    k, v = arg.split(':', 1)
 	    kwargs[k] = v
+	elif arg[-1] == '?':
+	    kwargs[arg[:-1]] = None
 	else:
 	    args.append(arg)
     return args, kwargs
@@ -115,3 +124,22 @@ def load_tconf(path, visitor):
     if not section_name is None:
 	visitor.leave_section(section_name)
     fh.close()
+
+
+# Register Template Handlers
+#
+try:
+    import tempita
+    def _tempita_handler(self, path):
+	templ = tempita.Template.from_filename(path)
+	return templ.substitute
+    reg_template_handler('.tempita', _tempita_handler)
+except ImportError:
+    pass
+
+def _interp_handler(self, path):
+    fh = open(path)
+    templ = fh.read()
+    fh.close()
+    return lambda kwargs: templ % kwargs
+reg_template_handler('.templ', _interp_handler)
