@@ -80,9 +80,9 @@ def load_pools(url):
 	name = e_p.get('name')
 	metrics = dmap(_scan_metric, e_p.findall(DCACHE.metric))
 	p = PoolInfo(name)
-	p.enabled = metrics['enabled']
-	p.read_only = metrics['read-only']
-	p.last_heartbeat = metrics['last-heartbeat']
+	p.enabled = metrics.get('enabled')
+	p.read_only = metrics.get('read-only')
+	p.last_heartbeat = metrics.get('last-heartbeat')
 	p.poolgrouprefs = [e.get('name') for e in
 		e_p.findall(DCACHE.poolgroups + '/' + DCACHE.poolgroupref)]
 	yield p
