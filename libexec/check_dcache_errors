@@ -1,0 +1,75 @@
+#! /usr/bin/env python
+import re, sys
+from getopt import gnu_getopt, GetoptError
+from subprocess import Popen, PIPE
+
+error_re = re.compile(r'.*\bFile could not be opened\b')
+ignore_re = re.compile('|'.join([
+  r'\s+$',
+  r'\s+\[1\]\[eagleredtrans.gif\]$',
+  r'\s+Birds Home$',
+  r'\s+\[eagle-grey\.gif\]$',
+  r'Pool Property Tables$',
+  r'Pool Views$',
+  r'\s+\[2\]PoolManager$',
+  r'Pool groups of PoolManager$',
+  r'\s+PoolGroup\s+Total Space/MB',
+  r'\s+\[\d+\][a-zA-Z0-9_]+\s+\d+\s+\d+\s+\d+$',
+  r'Pool group [a-zA-Z0-9_]+$',
+  r'\s+\[\d+\]Cell View \[\d+\]Space Usage',
+  r'\s+CellName\s+DomainName\s+Total Space/MB',
+  r'\s+[a-zA-Z0-9_]+\s+[-a-zA-Z0-9_]+\s+\d+\s+\d+\s+\d+$',
+  r'\s+_+$',
+  r'\s+diskCacheV\d+\.services\.web\.PoolInfoObserverEngine',
+  r'References$',
+  r'\s+\d+\. http://',
+]))
+
+def check_url(url):
+    cmd = ['lynx', '-width=512', '-dump', url]
+    fh = Popen(cmd, shell = False, stdout = PIPE).stdout
+    errors = []
+    ignored = []
+    line_count = 0
+    for ln in fh:
+	line_count += 1
+	if re.match(error_re, ln):
+	    errors.append(ln)
+	elif not re.match(ignore_re, ln):
+	    ignored.append(ln)
+    fh.close()
+    if errors:
+	print 'Found %d errors.'%len(errors)
+	map(sys.stdout.write, errors)
+	sys.exit(2)
+    if ignored:
+	print 'Some lines were not recognised, please update the probe.'
+	print 'Unrecognized lines from "%s":\n'%' '.join(cmd)
+	map(sys.stdout.write, ignored)
+	sys.exit(3)
+    if line_count < 20:
+	print 'The output is suspiciously short.'
+	print '%s gives only %d lines of output.'%(' '.join(cmd), line_count)
+	sys.exit(3)
+    print 'Scanned %d lines'%line_count
+    sys.exit(0)
+
+base_url = None
+page_path = None
+try:
+    opts, args = gnu_getopt(sys.argv[1:], 'H:g:')
+    for opt, arg in opts:
+	if opt == '-H':
+	    base_url = 'http://%s:2288'%arg
+	elif opt == '-g':
+	    page_path = '/pools/list/PoolManager/%s/spaces'%arg
+	else:
+	    assert false
+    if base_url is None:
+	raise GetoptError('The -H option is mandatory.')
+    if page_path is None:
+	raise GetoptError('The -g option is mandatory.')
+except GetoptError, xc:
+    sys.stderr.write('%s\n'%xc)
+    sys.exit(3)
+check_url(base_url + page_path)
