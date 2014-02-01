@@ -4,6 +4,9 @@ from getopt import gnu_getopt, GetoptError
 from subprocess import Popen, PIPE
 
 error_re = re.compile(r'.*\bFile could not be opened\b')
+inform_re = re.compile('|'.join([
+  r'\s+[a-zA-Z0-9_]+\s\[\d+\]\s+Initializing\s*$',
+]))
 ignore_re = re.compile('|'.join([
   r'\s+$',
   r'\s+\[1\]\[eagleredtrans.gif\]$',
@@ -28,31 +31,37 @@ ignore_re = re.compile('|'.join([
 def check_url(url):
     cmd = ['lynx', '-width=512', '-dump', url]
     fh = Popen(cmd, shell = False, stdout = PIPE).stdout
-    errors = []
-    ignored = []
+    msgs = []
     line_count = 0
+    error_count = 0
+    unknown_count = 0
     for ln in fh:
 	line_count += 1
 	if re.match(error_re, ln):
-	    errors.append(ln)
+	    error_count += 1
+	    msgs.append('E ' + ln)
+	elif re.match(inform_re, ln):
+	    msgs.append('I ' + ln)
 	elif not re.match(ignore_re, ln):
-	    ignored.append(ln)
+	    unknown_count += 1
+	    msgs.append('U ' + ln)
     fh.close()
-    if errors:
-	print 'Found %d errors.'%len(errors)
-	map(sys.stdout.write, errors)
-	sys.exit(2)
-    if ignored:
+    if error_count:
+	print 'Found %d errors.' % error_count
+	status_code = 2
+    elif unknown_count:
 	print 'Some lines were not recognised, please update the probe.'
-	print 'Unrecognized lines from "%s":\n'%' '.join(cmd)
-	map(sys.stdout.write, ignored)
-	sys.exit(3)
-    if line_count < 20:
+	status_code = 3
+    elif line_count < 20:
 	print 'The output is suspiciously short.'
 	print '%s gives only %d lines of output.'%(' '.join(cmd), line_count)
-	sys.exit(3)
-    print 'Scanned %d lines'%line_count
-    sys.exit(0)
+	map(sys.stdout.write, msgs)
+	status_code = 3
+    else:
+	print 'Scanned %d lines'%line_count
+	status_code = 0
+    map(sys.stdout.write, msgs)
+    sys.exit(status_code)
 
 base_url = None
 page_path = None
@@ -64,7 +73,7 @@ try:
 	elif opt == '-g':
 	    page_path = '/pools/list/PoolManager/%s/spaces'%arg
 	else:
-	    assert false
+	    assert False
     if base_url is None:
 	raise GetoptError('The -H option is mandatory.')
     if page_path is None:
