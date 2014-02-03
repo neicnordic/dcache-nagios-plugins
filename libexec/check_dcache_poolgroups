@@ -284,9 +284,14 @@ try:
 		if unmon_pns:
 		    partially_monitored[dn] = unmon_pns
 
-    if not missing and not partially_monitored:
+    if not missing:
 	status_code = 0
-	print 'Reported %d poolgroups to %d services.'%(gcount, service_count)
+	if not partially_monitored:
+	    print 'Reported %d poolgroups to %d services.'%(gcount, service_count)
+	else:
+	    print 'Reported %d poolgorups to %d services, ' \
+		  '%d domain is partially monitored.' \
+		  % (gcount, service_count, len(partially_monitored))
     else:
 	status_code = 1
 	npm = sum(len(pns) for pns in partially_monitored.itervalues())
