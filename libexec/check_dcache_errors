@@ -3,7 +3,10 @@ import re, sys
 from getopt import gnu_getopt, GetoptError
 from subprocess import Popen, PIPE
 
-error_re = re.compile(r'.*\bFile could not be opened\b')
+error_re = re.compile('|'.join([
+    r'.*\bFile could not be opened\b',
+    r'\s*(?P<pool>[a-zA-Z0-9_]+)\s+[a-zA-Z0-9_]+\s+\[\d+\]\s+At least one drive broken in raidset, machine unstable',
+]))
 inform_re = re.compile('|'.join([
   r'\s*([a-zA-Z0-9_]+\s+){2}\[\d+\]\s+Initializing\s*$',
 ]))
@@ -32,14 +35,20 @@ def check_url(url):
     cmd = ['lynx', '-width=512', '-dump', url]
     fh = Popen(cmd, shell = False, stdout = PIPE).stdout
     msgs = []
+    error_pools = []
     line_count = 0
     error_count = 0
     unknown_count = 0
     for ln in fh:
 	line_count += 1
-	if re.match(error_re, ln):
+	mo = re.match(error_re, ln)
+	if mo:
 	    error_count += 1
 	    msgs.append('E ' + ln)
+	    try:
+		error_pools.append(mo.group('pool'))
+	    except IndexError:
+		pass
 	elif re.match(inform_re, ln):
 	    msgs.append('N ' + ln)
 	elif not re.match(ignore_re, ln):
@@ -47,7 +56,11 @@ def check_url(url):
 	    msgs.append('U ' + ln)
     fh.close()
     if error_count:
-	print 'Found %d errors.' % error_count
+	if error_pools:
+	    print 'Found %d errors affecting %s.' \
+		% (error_count, ', '.join(error_pools))
+	else:
+	    print 'Found %d errors.' % error_count
 	status_code = 2
     elif unknown_count:
 	print 'Some lines were not recognised, please update the probe.'
