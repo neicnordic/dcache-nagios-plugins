@@ -86,6 +86,8 @@ def size_float(s):
     return float(s)
 
 def show_size(x):
+    if x < 0:
+	return '-' + show_size(-x)
     if x == 0:
 	return '0'
     n = int(math.log(x) / math.log(1024))
