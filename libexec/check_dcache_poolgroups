@@ -44,11 +44,13 @@ class PassiveChecker(object):
 class PoolsetChecker(PassiveChecker):
 
     _ok_message = 'Pools are ok.'
-    _svc_template = '%(poolset)s %(metric)s'
+    _svc_base_template = '%(poolset)s %(metric)s'
+    _critical_if_all_ro = False
 
     def __init__(self, args, nagcmd_fh = sys.stdout):
 	PassiveChecker.__init__(self, args.host, nagcmd_fh = nagcmd_fh)
 	self._args = args
+	self._svc_template = args.site_prefix + self._svc_base_template
 
     def status_for(self, poolset_name, metric):
 	d = dict(poolset = poolset_name, metric = metric)
@@ -56,8 +58,9 @@ class PoolsetChecker(PassiveChecker):
 	return self.status_for_service(service_name)
 
     def check_pools(self, poolrefs, poolset_name):
+	pools_are_phrase = counted_noun(len(poolrefs), 'pool is', 'pools are')
 	r = self.status_for(poolset_name, self._args.heartbeat_service)
-	r.okmsgs.append('Group of ' + counted_noun(len(poolrefs), 'pool'))
+	r.okmsgs.append('All %s ok' % pools_are_phrase)
 
 	hc_count = hw_count = ro_count = 0
 	hc_pools = []
@@ -76,7 +79,7 @@ class PoolsetChecker(PassiveChecker):
 		    and p.last_heartbeat > self._args.heartbeat_limit[1]:
 		hw_count += 1
 		hw_pools.append(p.name)
-	def report_pools(count, pools, retcode, msg_s, msg_pl):
+	def report_pools(r, count, pools, retcode, msg_s, msg_pl):
 	    if count > 0:
 		r.retcode = retcode
 		msg = plcase(count, msg_s, msg_pl)
@@ -84,28 +87,36 @@ class PoolsetChecker(PassiveChecker):
 		    r.msgs.append('%s: %s.'%(msg, ', '.join(pools)))
 		else:
 		    r.msgs.append(msg + '.')
-	report_pools(hc_count, hc_pools, 2,
+
+	# Read availability
+	report_pools(r, hc_count, hc_pools, 2,
 		'%(count)d pool has critical heartbeat',
 		'%(count)d pools have critical heartbeat')
-	report_pools(hw_count, hw_pools, 1,
+	report_pools(r, hw_count, hw_pools, 1,
 		'%(count)d pool has high heartbeat',
 		'%(count)d pools have critical heartbeat')
-	if ro_count == len(poolrefs):
+
+	# Write availability
+	r = self.status_for(poolset_name, self._args.write_service)
+	if not r.okmsgs:
+	    r.okmsgs.append('All %s writable' % pools_are_phrase)
+	if self._critical_if_all_ro and ro_count == len(poolrefs):
 	    r.retcode = 2
-	    r.msgs.append('All pools are read-only.')
+	    r.msgs.append('All %s read-only' % pools_are_phrase)
 	else:
-	    report_pools(ro_count, ro_pools, 1,
+	    report_pools(r, ro_count, ro_pools, 1,
 		'%(count)d pool is read-only',
 		'%(count)d pools are read-only')
 
 class PoolgroupChecker(PoolsetChecker):
 
     _ok_message = 'Poolgroup is ok.'
+    _critical_if_all_ro = True
 
     def __init__(self, args, nagcmd_fh = sys.stdout):
 	self._args = args
 	PassiveChecker.__init__(self, args.host, nagcmd_fh = nagcmd_fh)
-	self._svc_template = args.poolgroup_prefix + self._svc_template
+	self._svc_template = args.poolgroup_prefix + self._svc_base_template
 
     def check_poolgroup(self, g):
 	if self._args.available_enabled:
@@ -194,7 +205,9 @@ try:
     ap.add_argument('--exclude', nargs = '+', default = [],
 	    help = 'Exclude specified poolgroups.')
     ap.add_argument('--poolgroup-prefix', default = 'PG ',
-	    help = 'Prefix passive services for poolgroups with this string.')
+	    help = 'Prefix for passive services related to poolgroups.')
+    ap.add_argument('--site-prefix', default = '',
+	    help = 'Prefix for passive services related to sites.')
 
     ap.add_argument('--available-service', default = '',
 	    metavar = 'SERVICE_SUFFIX',
@@ -240,11 +253,18 @@ try:
 	    type = cwpair(float), default = (None, None),
 	    metavar = 'CW_TIME',
 	    help = 'critical[,warning]: Max advisable heartbeat.')
+    ap.add_argument('--write-service', default = '',
+	    help = 'Service suffix for reporting write availability.')
     ap.add_argument('--list-pools', action = 'store_true', default = False,
 	    help = 'List pools with critical or high heartbeat.')
 
-    ap.add_argument('--check-pools-tconf', metavar = 'PATH',
-	    help = 'Check if PATH lists all the pools in monitored poolgroups.')
+    ap.add_argument('--pools-tconf', metavar = 'PATH',
+	    help = 'Location of pools.tconf, used for site checks.')
+    ap.add_argument('--check-sites', default = False, action = 'store_true',
+	    help = 'Check site availability.')
+    ap.add_argument('--check-coverage', default = False, action = 'store_true',
+	    help = 'Check that the --pools-tconf argument lists all pools in '
+		   'monitored poolgroups.')
 
     args = ap.parse_args()
     args.available_enabled = any(args.available_alimit) \
@@ -266,7 +286,7 @@ try:
     # Check pool groups.
     gs = load_poolgroups(args.url + '/poolgroups')
     if args.heartbeat_limit[0] or args.heartbeat_limit[1] \
-	    or args.check_pools_tconf:
+	    or args.check_coverage:
 	ps = dict((p.name, p) for p in load_pools(args.url + '/pools'))
     service_count = 0
     gcount = 0
@@ -285,30 +305,39 @@ try:
     # Check pools missing from pools.tconf if requested.
     missing = []
     partially_monitored = {}
-    if args.check_pools_tconf:
-	visitor = tconf.TconfAccumulatingVisitor()
-	tconf = tconf.load_tconf(args.check_pools_tconf, visitor)
-	calls = visitor.calls.get('pool', []) + visitor.calls.get('poolh', [])
-	tpools = set([poolname for (hostname, poolname), _ in calls])
+    if args.pools_tconf:
+	visitor = tconf.TconfSectionedAccumulatingVisitor()
+	tconf.load_tconf(args.pools_tconf, visitor)
+	monitored_pools = set([])
 
-	# Pools which are member of pool groups.
-	for p in ps.itervalues():
-	    for gn in p.poolgrouprefs:
-		if not gn in args.exclude:
-		    if not p.name in tpools:
-			missing.append((p.name, gn))
-		    break
+	for site in visitor.sections.itervalues():
+	    calls = site.calls.get('pool', []) + site.calls.get('poolh', [])
+	    pools = set(poolname for (hostname, poolname), _ in calls)
+	    monitored_pools.update(pools)
+	    if args.check_sites:
+		checker = PoolsetChecker(args = args, nagcmd_fh = nagcmd_fh)
+		checker.check_pools(pools, site.section_name)
+		checker.report_passive()
 
-	# Pools on domains where at least one pool is monitored.
-	for dn, pns in load_domain_poolnames(args.url):
-	    is_monitored = False
-	    for pn in pns:
-		if pn in tpools:
-		    is_monitored = True
-	    if is_monitored:
-		unmon_pns = [p for p in pns if not p in tpools]
-		if unmon_pns:
-		    partially_monitored[dn] = unmon_pns
+	if args.check_coverage:
+	    # Pools which are member of pool groups.
+	    for p in ps.itervalues():
+		for gn in p.poolgrouprefs:
+		    if not gn in args.exclude:
+			if not p.name in monitored_pools:
+			    missing.append((p.name, gn))
+			break
+
+	    # Pools on domains where at least one pool is monitored.
+	    for dn, pns in load_domain_poolnames(args.url):
+		is_monitored = False
+		for pn in pns:
+		    if pn in monitored_pools:
+			is_monitored = True
+		if is_monitored:
+		    unmon_pns = [p for p in pns if not p in monitored_pools]
+		    if unmon_pns:
+			partially_monitored[dn] = unmon_pns
 
     if not missing:
 	status_code = 0
@@ -325,7 +354,7 @@ try:
 	      'found %d + %d unmonitored pools.' \
 	    % (gcount, service_count, len(missing), npm)
     if missing:
-	print 'Pools missing from %s:'%args.check_pools_tconf
+	print 'Pools missing from %s:'%args.pools_tconf
 	for pn, gn in missing:
 	    print '  - %s in group %s'%(pn, gn)
     if partially_monitored:

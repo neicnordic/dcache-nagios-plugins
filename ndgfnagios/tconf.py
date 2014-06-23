@@ -40,20 +40,32 @@ class TconfTemplateVisitor(TconfCustomVisitor):
 	self.template_dirs = template_dirs
 	self.outfile = sys.stdout
 
+    def find_file(self, fn):
+	for dir in self.template_dirs:
+	    path = os.path.join(dir, fn)
+	    if os.path.exists(path):
+		return path
+	raise RuntimeError('Cannot find %s in %s.' % (fn, self.template_dirs))
+
+    def get_template(self, name, from_template):
+	path = self.find_file(name)
+	return from_template.__class__.from_filename(
+		    path,
+		    namespace = from_template.namespace,
+		    get_template = from_template.get_template)
+
     def template(self, name, *formal_args, **formal_kwargs):
 	found = False
-	for dir in self.template_dirs:
-	    for suffix, handler in _template_handlers:
-		path = os.path.join(dir, name + suffix)
-		if os.path.exists(path):
-		    found = True
-		    break
-	if not found:
+	for suffix, handler in _template_handlers:
+	    path = self.find_file(name + suffix)
+	    if path:
+		break
+	if path is None:
 	    suffixes = map(lambda h: h[0], _template_handlers)
 	    raise AttributeError("Cannot find template named %s; scanned dirs "
 				 "%s and suffixes %s."
 		    %(name, ', '.join(self.template_dirs), ', '.join(suffixes)))
-	templ = handler(self, path)
+	templ = handler(self, path, get_template = self.get_template)
 	def f(self, *args, **kwargs):
 	    for k, v in formal_kwargs.iteritems():
 		if not k in kwargs:
@@ -72,6 +84,32 @@ class TconfAccumulatingVisitor(TconfCustomVisitor):
 	if not macro_name in self.calls:
 	    self.calls[macro_name] = []
 	self.calls[macro_name].append((args, kwargs))
+
+class TconfSection(object):
+
+    def __init__(self, section_name):
+	self.section_name = section_name
+	self.calls = {}
+
+    def invoke(self, macro_name, *args, **kwargs):
+	if not macro_name in self.calls:
+	    self.calls[macro_name] = []
+	self.calls[macro_name].append((args, kwargs))
+
+class TconfSectionedAccumulatingVisitor(TconfCustomVisitor):
+    def __init__(self):
+	self.sections = {}
+	self._section_name = None
+
+    def enter_section(self, section_name, **kwargs):
+	self._section_name = section_name
+	self.sections[section_name] = TconfSection(section_name)
+
+    def leave_section(self, section_name):
+	self._section_name = None
+
+    def invoke(self, macro_name, *args, **kwargs):
+	self.sections[self._section_name].invoke(macro_name, *args, **kwargs)
 
 def _get_args(preargs):
     args = []
@@ -130,14 +168,14 @@ def load_tconf(path, visitor):
 #
 try:
     import tempita
-    def _tempita_handler(self, path):
-	templ = tempita.Template.from_filename(path)
+    def _tempita_handler(self, path, get_template = None):
+	templ = tempita.Template.from_filename(path, get_template = get_template)
 	return templ.substitute
     reg_template_handler('.tempita', _tempita_handler)
 except ImportError:
     pass
 
-def _interp_handler(self, path):
+def _interp_handler(self, path, get_template = None):
     fh = open(path)
     templ = fh.read()
     fh.close()
