@@ -299,9 +299,6 @@ try:
 	    service_count += checker.report_passive()
 	    gcount += 1
 
-    if nagcmd_path:
-	nagcmd_fh.close()
-
     # Check pools missing from pools.tconf if requested.
     missing = []
     partially_monitored = {}
@@ -339,6 +336,11 @@ try:
 		    if unmon_pns:
 			partially_monitored[dn] = unmon_pns
 
+    # Done reporting passive services.
+    if nagcmd_path:
+	nagcmd_fh.close()
+
+    # Report status of the main service.
     if not missing:
 	status_code = 0
 	if not partially_monitored:
