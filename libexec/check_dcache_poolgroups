@@ -74,7 +74,8 @@ class PoolsetChecker(PassiveChecker):
 	return self.status_for_service(service_name)
 
     def check_pools(self, ps, poolrefs, poolset_name):
-	pools_are_phrase = counted_noun(len(poolrefs), 'pool is', 'pools are')
+	poolref_count = len(poolrefs)
+	pools_are_phrase = counted_noun(poolref_count, 'pool is', 'pools are')
 	r = self.status_for(poolset_name, self._args.heartbeat_service)
 	r.update(0, 'All %s ok.' % pools_are_phrase)
 
@@ -92,7 +93,8 @@ class PoolsetChecker(PassiveChecker):
 	    if p.read_only:
 		ro_count += 1
 		ro_pools.append(p.name)
-	    if self._args.heartbeat_limit[0] \
+	    if p.last_heartbeat < 0 \
+		 or self._args.heartbeat_limit[0] \
 		    and p.last_heartbeat > self._args.heartbeat_limit[0]:
 		hc_count += 1
 		hc_pools.append(p.name)
@@ -102,8 +104,8 @@ class PoolsetChecker(PassiveChecker):
 		hw_pools.append(p.name)
 	def report_pools(r, count, pools, retcode, msg_s, msg_pl):
 	    if count > 0:
-		msg = '%s of %s %s' % \
-			(count, len(poolrefs), count == 1 and msg_s or msg_pl)
+		msg = '%s of %s %s' % (count, poolref_count,
+				       poolref_count == 1 and msg_s or msg_pl)
 		if self._args.list_pools:
 		    r.update(retcode, '%s: %s.'%(msg, ', '.join(pools)))
 		else:
@@ -126,7 +128,10 @@ class PoolsetChecker(PassiveChecker):
 	if self._args.write_service != self._args.heartbeat_service:
 	    r.update(0, 'All %s writable.' % pools_are_phrase)
 	if self._critical_if_all_ro and ro_count == len(poolrefs):
-	    r.update(2, 'All %s read-only.' % pools_are_phrase)
+	    if ro_count == 0:
+		r.update(1, 'Unwritable empty poolgroup.')
+	    else:
+		r.update(2, 'All %s read-only.' % pools_are_phrase)
 	else:
 	    report_pools(r, ro_count, ro_pools, 1,
 			 'pool is read-only', 'pools are read-only')
