@@ -21,14 +21,13 @@ class NagiosResult(object):
     def update(self, retcode, msg):
 	if retcode > self.retcode:
 	    self.retcode = retcode
-	    self._messages = [msg]
-	elif retcode == self.retcode:
-	    self._messages.append(msg)
+	self._messages.append((retcode, msg))
 
     @property
     def message(self):
 	if self._messages:
-	    msg = ' '.join(self._messages)
+	    min_rc = self.retcode and 1
+	    msg = ' '.join(msg for rc, msg in self._messages if rc >= min_rc)
 	else:
 	    msg = self._ok_message
 	return msg.strip()
@@ -106,10 +105,12 @@ class PoolsetChecker(PassiveChecker):
 		hw_pools.append(p.name)
 	def report_pools(r, count, pools, retcode, msg_s, msg_pl):
 	    if count > 0:
+		pools = list(pools)
+		pools.sort()
 		msg = '%s of %s %s' % (count, poolref_count,
 				       poolref_count == 1 and msg_s or msg_pl)
 		if self._args.list_pools:
-		    r.update(retcode, '%s: %s.'%(msg, ', '.join(pools)))
+		    r.update(retcode, '%s (%s).'%(msg, ', '.join(pools)))
 		else:
 		    r.update(retcode, msg + '.')
 
