@@ -73,16 +73,21 @@ class PoolsetChecker(PassiveChecker):
 	service_name = (self._svc_template % d).strip()
 	return self.status_for_service(service_name)
 
-    def check_pools(self, poolrefs, poolset_name):
+    def check_pools(self, ps, poolrefs, poolset_name):
 	pools_are_phrase = counted_noun(len(poolrefs), 'pool is', 'pools are')
 	r = self.status_for(poolset_name, self._args.heartbeat_service)
 	r.update(0, 'All %s ok.' % pools_are_phrase)
 
-	hc_count = hw_count = ro_count = 0
+	missing_count = hc_count = hw_count = ro_count = 0
+	missing_pools = []
 	hc_pools = []
 	hw_pools = []
 	ro_pools = []
 	for pn in poolrefs:
+	    if not pn in ps:
+		missing_count += 1
+		missing_pools.append(pn)
+		continue
 	    p = ps[pn]
 	    if p.read_only:
 		ro_count += 1
@@ -103,6 +108,10 @@ class PoolsetChecker(PassiveChecker):
 		    r.update(retcode, '%s: %s.'%(msg, ', '.join(pools)))
 		else:
 		    r.update(retcode, msg + '.')
+
+	# Report missing
+	report_pools(r, missing_count, missing_pools, 2,
+		     'pool lacks metrics', 'pools lack metrics')
 
 	# Read availability
 	report_pools(r, hc_count, hc_pools, 2,
@@ -306,7 +315,7 @@ try:
 	if not g.name in args.exclude:
 	    checker = PoolgroupChecker(args = args, nagcmd_fh = nagcmd_fh)
 	    if args.heartbeat_enabled:
-		checker.check_pools(g.poolrefs, g.name)
+		checker.check_pools(ps, g.poolrefs, g.name)
 	    checker.check_poolgroup(g)
 	    service_count += checker.report_passive()
 	    gcount += 1
@@ -325,7 +334,7 @@ try:
 	    monitored_pools.update(pools)
 	    if args.check_sites:
 		checker = PoolsetChecker(args = args, nagcmd_fh = nagcmd_fh)
-		checker.check_pools(pools, site.section_name)
+		checker.check_pools(ps, pools, site.section_name)
 		checker.report_passive()
 
 	if args.check_coverage:
