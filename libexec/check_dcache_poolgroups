@@ -7,9 +7,31 @@
 import argparse, os, sys, time, traceback
 from ndgfnagios import tconf
 from ndgfnagios.utils import size_float, show_size, FreeObject
-from ndgfnagios.utils import counted_noun, plcase
+from ndgfnagios.utils import counted_noun
 from ndgfnagios.dcacheinfo import load_poolgroups, load_pools, \
 				  load_domain_poolnames
+
+class NagiosResult(object):
+
+    def __init__(self, ok_message):
+	self._ok_message = ok_message
+	self.retcode = 0
+	self._messages = []
+
+    def update(self, retcode, msg):
+	if retcode > self.retcode:
+	    self.retcode = retcode
+	    self._messages = [msg]
+	elif retcode == self.retcode:
+	    self._messages.append(msg)
+
+    @property
+    def message(self):
+	if self._messages:
+	    msg = ' '.join(self._messages)
+	else:
+	    msg = self._ok_message
+	return msg.strip()
 
 class PassiveChecker(object):
 
@@ -22,22 +44,16 @@ class PassiveChecker(object):
 
     def status_for_service(self, service):
 	if not service in self._results:
-	    self._results[service] = FreeObject(retcode = 0, okmsgs = [], msgs = [])
+	    self._results[service] = NagiosResult(self._ok_message)
 	return self._results[service]
 
     def report_passive(self):
 	t = int(time.time())
 	service_count = 0
 	for svc_name, r in self._results.iteritems():
-	    msg = ''
-	    if r.okmsgs:
-		msg = ', '.join(r.okmsgs) + '. '
-	    if r.msgs:
-		msg += ' '.join(r.msgs)
 	    self._nagcmd_fh.write(
 		    '[%d] PROCESS_SERVICE_CHECK_RESULT;%s;%s;%d;%s\n' \
-		    % (t, self._host, svc_name, r.retcode,
-		       msg.strip() or self._ok_message))
+		    % (t, self._host, svc_name, r.retcode, r.message))
 	    service_count += 1
 	return service_count
 
@@ -60,7 +76,7 @@ class PoolsetChecker(PassiveChecker):
     def check_pools(self, poolrefs, poolset_name):
 	pools_are_phrase = counted_noun(len(poolrefs), 'pool is', 'pools are')
 	r = self.status_for(poolset_name, self._args.heartbeat_service)
-	r.okmsgs.append('All %s ok' % pools_are_phrase)
+	r.update(0, 'All %s ok.' % pools_are_phrase)
 
 	hc_count = hw_count = ro_count = 0
 	hc_pools = []
@@ -81,32 +97,30 @@ class PoolsetChecker(PassiveChecker):
 		hw_pools.append(p.name)
 	def report_pools(r, count, pools, retcode, msg_s, msg_pl):
 	    if count > 0:
-		r.retcode = retcode
-		msg = plcase(count, msg_s, msg_pl)
+		msg = '%s of %s %s' % \
+			(count, len(poolrefs), count == 1 and msg_s or msg_pl)
 		if self._args.list_pools:
-		    r.msgs.append('%s: %s.'%(msg, ', '.join(pools)))
+		    r.update(retcode, '%s: %s.'%(msg, ', '.join(pools)))
 		else:
-		    r.msgs.append(msg + '.')
+		    r.update(retcode, msg + '.')
 
 	# Read availability
 	report_pools(r, hc_count, hc_pools, 2,
-		'%(count)d pool has critical heartbeat',
-		'%(count)d pools have critical heartbeat')
+		     'pool has critical heartbeat',
+		     'pools have critical heartbeat')
 	report_pools(r, hw_count, hw_pools, 1,
-		'%(count)d pool has high heartbeat',
-		'%(count)d pools have critical heartbeat')
+		     'pool has high heartbeat',
+		     'pools have high heartbeat')
 
 	# Write availability
 	r = self.status_for(poolset_name, self._args.write_service)
-	if not r.okmsgs:
-	    r.okmsgs.append('All %s writable' % pools_are_phrase)
+	if self._args.write_service != self._args.heartbeat_service:
+	    r.update(0, 'All %s writable.' % pools_are_phrase)
 	if self._critical_if_all_ro and ro_count == len(poolrefs):
-	    r.retcode = 2
-	    r.msgs.append('All %s read-only' % pools_are_phrase)
+	    r.update(2, 'All %s read-only.' % pools_are_phrase)
 	else:
 	    report_pools(r, ro_count, ro_pools, 1,
-		'%(count)d pool is read-only',
-		'%(count)d pools are read-only')
+			 'pool is read-only', 'pools are read-only')
 
 class PoolgroupChecker(PoolsetChecker):
 
@@ -122,19 +136,19 @@ class PoolgroupChecker(PoolsetChecker):
 	if self._args.available_enabled:
 	    r = self.status_for(g.name, self._args.available_service)
 	    if g.total_space:
-		r.okmsgs.append('%s (%.2g) available' %
+		r.update(0, '%s (%.2g) available.' %
 		    (show_size(g.available_space),
 		     g.available_space / float(g.total_space)))
 	if self._args.free_enabled:
 	    r = self.status_for(g.name, self._args.free_service)
 	    if g.total_space:
-		r.okmsgs.append('%s (%.2g) free' %
+		r.update(0, '%s (%.2g) free.' %
 		    (show_size(g.free_space),
 		     g.free_space / float(g.total_space)))
 	if self._args.nonprecious_enabled:
 	    r = self.status_for(g.name, self._args.nonprecious_service)
 	    if g.total_space and g.precious_space:
-		r.okmsgs.append('%s (%.2g) nonprecious' %
+		r.update(0, '%s (%.2g) nonprecious.' %
 		    (show_size(g.nonprecious_space),
 		     g.nonprecious_space / float(g.total_space)))
 
@@ -146,8 +160,7 @@ class PoolgroupChecker(PoolsetChecker):
 	    if not alimit is None:
 		c1 = free_space < alimit
 	    if c0 and c1 or (not self._args.conjunct and (c0 or c1)):
-		r.retcode = max(r.retcode, retcode)
-		r.msgs.append(msg)
+		r.update(retcode, msg)
 		return True
 	    return False
 	def ckspace2(r, rlimits, alimits, free_space, what):
@@ -172,8 +185,7 @@ class PoolgroupChecker(PoolsetChecker):
 	    if self._args.free_enabled or self._args.nonprecious_enabled:
 		for s in set([self._args.free_service, self._args.nonprecious_service]):
 		    r = self.status_for(g.name, s)
-		    r.retcode = 0
-		    r.msgs.append('No space allocated.')
+		    r.update(0, 'No space allocated.')
 
 def cwpair(t):
     def f(s):
