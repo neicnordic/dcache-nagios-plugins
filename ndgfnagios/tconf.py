@@ -1,4 +1,4 @@
-import os, sys
+import os, shlex, sys
 
 def parse_error(path, lineno, msg):
     sys.stderr.write('%s:%d: %s\n'%(path, lineno, msg))
@@ -138,7 +138,7 @@ def load_tconf(path, visitor):
 	while ln.endswith('\\\n'):
 	    lineno += 1
 	    ln = ln[:-2] + fh.readline()
-	words = ln.split()
+	words = shlex.split(ln)
 	keyword = words[0]
 	args, kwargs = _get_args(words[1:])
 	if ln[0].isspace():
