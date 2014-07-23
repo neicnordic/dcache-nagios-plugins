@@ -8,6 +8,7 @@ error_re = re.compile('|'.join([
     r'\s*(?P<pool>[a-zA-Z0-9_]+)\s+[a-zA-Z0-9_]+\s+\[\d+\]\s+At least one drive broken in raidset, machine unstable',
 ]))
 inform_re = re.compile('|'.join([
+  r'\s*([a-zA-Z0-9_]+\s+){2}\[\d+\]\s+tape_maintenance\s*$',
   r'\s*([a-zA-Z0-9_]+\s+){2}\[\d+\]\s+Initializing\s*$',
 ]))
 ignore_re = re.compile('|'.join([
