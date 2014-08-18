@@ -82,6 +82,7 @@ class PoolsetChecker(PassiveChecker):
 
 	missing_count = hc_count = hw_count = ro_count = 0
 	missing_pools = []
+	missing_heartbeat = []
 	hc_pools = []
 	hw_pools = []
 	ro_pools = []
@@ -94,7 +95,9 @@ class PoolsetChecker(PassiveChecker):
 	    if p.read_only:
 		ro_count += 1
 		ro_pools.append(p.name)
-	    if p.last_heartbeat < 0 \
+	    if p.last_heartbeat is None:
+		missing_heartbeat.append(p.name)
+	    elif p.last_heartbeat < 0 \
 		 or self._args.heartbeat_limit[0] \
 		    and p.last_heartbeat > self._args.heartbeat_limit[0]:
 		hc_count += 1
@@ -117,6 +120,8 @@ class PoolsetChecker(PassiveChecker):
 	# Report missing
 	report_pools(r, missing_count, missing_pools, 2,
 		     'pool lacks metrics', 'pools lack metrics')
+	report_pools(r, len(missing_heartbeat), missing_heartbeat, 0,
+		     'pool lacks heartbeat', 'pools lack heartbeats')
 
 	# Read availability
 	report_pools(r, hc_count, hc_pools, 2,
