@@ -3,9 +3,14 @@ import re, sys
 from getopt import gnu_getopt, GetoptError
 from subprocess import Popen, PIPE
 
+pool_error_messages = [
+    r'At least one drive broken in raidset, machine unstable',
+    r'Pool read-only: Internal repository error',
+]
 error_re = re.compile('|'.join([
     r'.*\bFile could not be opened\b',
-    r'\s*(?P<pool>[a-zA-Z0-9_]+)\s+[a-zA-Z0-9_]+\s+\[\d+\]\s+At least one drive broken in raidset, machine unstable',
+    r'\s*(?P<pool>[a-zA-Z0-9_-]+)\s+[a-zA-Z0-9_-]+\s+\[\d+\]\s+(' \
+	+ '|'.join(pool_error_messages) + ')',
 ]))
 inform_re = re.compile('|'.join([
   r'\s*([a-zA-Z0-9_]+\s+){2}\[\d+\]\s+tape_maintenance\s*$',
