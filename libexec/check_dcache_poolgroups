@@ -6,10 +6,20 @@
 
 import argparse, os, sys, time, traceback
 from ndgfnagios import tconf
-from ndgfnagios.utils import size_float, show_size, FreeObject
+from ndgfnagios.utils import size_float, show_size
 from ndgfnagios.utils import counted_noun
 from ndgfnagios.dcacheinfo import load_poolgroups, load_pools, \
 				  load_domain_poolnames
+
+class NagiosCommand(object):
+
+    def __init__(self, nagcmd_fh):
+	self._nagcmd_fh = nagcmd_fh
+
+    def process_service_check_result(self, host, svc, rc, msg):
+	t = int(time.time())
+	self._nagcmd_fh.write('[%d] PROCESS_SERVICE_CHECK_RESULT;%s;%s;%d;%s\n'
+			      % (t, host, svc, rc, msg))
 
 class NagiosResult(object):
 
@@ -32,14 +42,14 @@ class NagiosResult(object):
 	    msg = self._ok_message
 	return msg.strip()
 
-class PassiveChecker(object):
+class PassiveChecker(NagiosCommand):
 
     _ok_message = 'Service is ok.'
 
     def __init__(self, host, nagcmd_fh = sys.stdout):
+	NagiosCommand.__init__(self, nagcmd_fh)
 	self._host = host
 	self._results = {}
-	self._nagcmd_fh = nagcmd_fh
 
     def status_for_service(self, service):
 	if not service in self._results:
@@ -47,12 +57,10 @@ class PassiveChecker(object):
 	return self._results[service]
 
     def report_passive(self):
-	t = int(time.time())
 	service_count = 0
 	for svc_name, r in self._results.iteritems():
-	    self._nagcmd_fh.write(
-		    '[%d] PROCESS_SERVICE_CHECK_RESULT;%s;%s;%d;%s\n' \
-		    % (t, self._host, svc_name, r.retcode, r.message))
+	    self.process_service_check_result(self._host, svc_name, r.retcode,
+					      r.message)
 	    service_count += 1
 	return service_count
 
@@ -299,6 +307,10 @@ try:
 	    help = 'Check that the --pools-tconf argument lists all pools in '
 		   'monitored poolgroups.')
 
+    ap.add_argument('--unmonitored-service', default = '',
+	    metavar = 'SERVICE_NAME',
+	    help = 'Target service for reporting unmonitored pools.')
+
     args = ap.parse_args()
     args.available_enabled = any(args.available_alimit) \
 			  or any(args.available_rlimit)
@@ -370,11 +382,18 @@ try:
 		    if unmon_pns:
 			partially_monitored[dn] = unmon_pns
 
-    # Done reporting passive services.
-    if nagcmd_path:
-	nagcmd_fh.close()
-
     # Report status of the main service.
+    npm = sum(len(pns) for pns in partially_monitored.itervalues())
+    if args.unmonitored_service:
+	nc = NagiosCommand(nagcmd_fh)
+	if missing:
+	    msg = 'Found %d + %d unmonitored pools.' % (len(missing), npm)
+	    nc.process_service_check_result(args.host, args.unmonitored_service,
+					    1, msg)
+	else:
+	    nc.process_service_check_result(
+		args.host, args.unmonitored_service,
+		0, 'Relevant pools are monitored.')
     if not missing:
 	status_code = 0
 	if not partially_monitored:
@@ -384,8 +403,10 @@ try:
 		  '%d domain is partially monitored.' \
 		  % (gcount, service_count, len(partially_monitored))
     else:
-	status_code = 1
-	npm = sum(len(pns) for pns in partially_monitored.itervalues())
+	if args.unmonitored_service:
+	    status_code = 0
+	else:
+	    status_code = 1
 	print 'Reported %d poolgroups to %d services, ' \
 	      'found %d + %d unmonitored pools.' \
 	    % (gcount, service_count, len(missing), npm)
@@ -401,6 +422,11 @@ try:
 	    pns = list(partially_monitored[dn])
 	    pns.sort()
 	    print '  - In %s: %s'%(dn, ', '.join(pns))
+
+    # Done reporting passive services.
+    if nagcmd_path:
+	nagcmd_fh.close()
+
     sys.exit(status_code)
 except Exception, xc:
     print 'Exception: %s'%xc
