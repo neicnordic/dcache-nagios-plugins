@@ -1,3 +1,4 @@
+# coding: utf-8
 import sys
 import math, re
 
@@ -72,6 +73,16 @@ _size_of_unit = {
     'KB': 1000, 'MB': 10**6, 'GB': 10**9, 'TB': 10**12,
     'PB': 10**15, 'EB': 10**18,
 }
+_time_of_unit = {
+    'ns': 1e-9,
+    'μs': 1e-6, 'us': 1e-6,
+    'ms': 1e-3,
+    's': 1,
+    'min': 60,
+    'h': 3600,
+    'day': 86400, 'days': 86400,
+    'week': 604800, 'weeks': 604800,
+}
 
 def size_unit(s):
     try:
@@ -97,6 +108,30 @@ def show_size(x):
 	n = max(_unit_by_log1024_size)
     u = _unit_by_log1024_size[n]
     return '%.3g %s'%(x / size_unit(u), u)
+
+def split_unit(s):
+    if '_' in s:
+	v, u = s.split('_', 1)
+	return (v, u)
+    else:
+	for i in range(len(s) - 1, -1, -1):
+	    if s[i].isdigit() or s[i] == '.':
+		return s[:i+1], s[i+1:]
+	raise ValueError('split_unit: Missing value.')
+
+def int_of_sizestr(s):
+    v, u = split_unit(s)
+    if u == '':
+	return int(v)
+    else:
+	return int(_size_of_unit[u] * float(v))
+
+def float_of_timestr(s):
+    v, u = split_unit(s)
+    if u == '':
+	return float(v)
+    else:
+	return _time_of_unit[u] * float(v)
 
 def counted_noun(count, sing_word, pl_word = None):
     if count == 1:
