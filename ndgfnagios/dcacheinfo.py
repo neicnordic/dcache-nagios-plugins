@@ -1,5 +1,4 @@
 import urllib
-from ndgfnagios.utils import dmap
 try: from xml.etree import cElementTree as etree
 except ImportError:
     from xml.etree import ElementTree as etree
@@ -78,7 +77,7 @@ def load_pools(url):
     doc = etree.parse(fh)
     for e_p in doc.findall('.//' + DCACHE.pools + '/' + DCACHE.pool):
 	name = e_p.get('name')
-	metrics = dmap(_scan_metric, e_p.findall(DCACHE.metric))
+	metrics = dict(map(_scan_metric, e_p.findall(DCACHE.metric)))
 	p = PoolInfo(name)
 	p.enabled = metrics.get('enabled')
 	p.read_only = metrics.get('read-only')
@@ -120,7 +119,7 @@ def load_poolgroups(url):
 		    e_g.findall(DCACHE.links + '/' + DCACHE.linkref)]
 	poolrefs = [e.get('name') for e in
 		    e_g.findall(DCACHE.pools + '/' + DCACHE.poolref)]
-	space = dmap(_scan_metric, e_g.findall(DCACHE.space+'/'+DCACHE.metric))
+	space = dict(map(_scan_metric, e_g.findall(DCACHE.space+'/'+DCACHE.metric)))
 	pg = PoolgroupInfo(name, linkrefs = linkrefs, poolrefs = poolrefs)
 	pg.total_space = space['total']
 	pg.free_space = space['free']

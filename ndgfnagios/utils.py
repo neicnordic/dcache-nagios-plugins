@@ -54,9 +54,6 @@ def tabfile_as_dict(get_key, get_val, path, ncols, **kwargs):
     iter_tabfile(f, path, ncols, **kwargs)
     return m
 
-def dmap(f, it):
-    return dict(map(f, it))
-
 class FreeObject(object):
     def __init__(self, **kwargs):
 	for k, v in kwargs.iteritems():
