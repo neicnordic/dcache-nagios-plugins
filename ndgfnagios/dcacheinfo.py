@@ -68,6 +68,8 @@ def _scan_metric(metric_elt):
 	x = {'true': True, 'false': False}[s]
     elif t == 'integer':
 	x = int(s)
+    elif t == 'float':
+	x = float(s)
     else:
 	raise AssertionError('Unsupported type %s.'%t)
     return (metric_elt.get('name'), x)
@@ -84,8 +86,27 @@ def load_pools(url):
 	p.last_heartbeat = metrics.get('last-heartbeat')
 	p.poolgrouprefs = [e.get('name') for e in
 		e_p.findall(DCACHE.poolgroups + '/' + DCACHE.poolgroupref)]
+	e_space = e_p.find(DCACHE.space).findall(DCACHE.metric)
+	space_metrics = dict(map(_scan_metric, e_space))
+	p.space_total = space_metrics.get('total')
+	p.space_break_even = space_metrics.get('break-even')
+	p.space_precious = space_metrics.get('precious')
+	p.space_removable = space_metrics.get('removable')
+	p.space_gap = space_metrics.get('gap')
+	p.space_LRU_seconds = space_metrics.get('LRU-seconds')
+	p.space_used = space_metrics.get('used')
+	p.space_free = space_metrics.get('free')
 	yield p
     fh.close()
+
+def load_pool(url):
+    pools = list(load_pools(url))
+    if len(pools) == 1:
+	return pools[0]
+    elif len(pools) == 0:
+	return None
+    else:
+	raise RuntimeError('Request for single pool gave %d results.' % len(pools))
 
 def load_domain_poolnames(info_url):
     fh = urllib.urlopen(info_url + '/domains')

@@ -93,6 +93,19 @@ def size_float(s):
 	return float(mo.group(1)) * size_unit(mo.group(2))
     return float(s)
 
+def show_time(x):
+    if x < 0:
+	return '-' + show_time(-x)
+    if x == 0:
+	return '0'
+    if x < 1e-6: return '%.3g ns' % (x*1e9)
+    if x < 1e-3: return '%.3g μs' % (x*1e6)
+    if x < 1: return '%.3g ms' % (x*1e3)
+    if x < 600: return '%.3g s' % x
+    if x < 36000: return '%.3g min' % (x / 60)
+    if x < 172800: return '%.3g h' % (x / 3600)
+    return '%.3g days' % (x / 86400)
+
 def show_size(x):
     if x < 0:
 	return '-' + show_size(-x)
