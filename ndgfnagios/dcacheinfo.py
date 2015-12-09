@@ -86,16 +86,17 @@ def load_pools(url):
 	p.last_heartbeat = metrics.get('last-heartbeat')
 	p.poolgrouprefs = [e.get('name') for e in
 		e_p.findall(DCACHE.poolgroups + '/' + DCACHE.poolgroupref)]
-	e_space = e_p.find(DCACHE.space).findall(DCACHE.metric)
-	space_metrics = dict(map(_scan_metric, e_space))
-	p.space_total = space_metrics.get('total')
-	p.space_break_even = space_metrics.get('break-even')
-	p.space_precious = space_metrics.get('precious')
-	p.space_removable = space_metrics.get('removable')
-	p.space_gap = space_metrics.get('gap')
-	p.space_LRU_seconds = space_metrics.get('LRU-seconds')
-	p.space_used = space_metrics.get('used')
-	p.space_free = space_metrics.get('free')
+	e_space = e_p.find(DCACHE.space)
+	if e_space:
+	    space_metrics = dict(map(_scan_metric, e_space.findall(DCACHE.metric)))
+	    p.space_total = space_metrics.get('total')
+	    p.space_break_even = space_metrics.get('break-even')
+	    p.space_precious = space_metrics.get('precious')
+	    p.space_removable = space_metrics.get('removable')
+	    p.space_gap = space_metrics.get('gap')
+	    p.space_LRU_seconds = space_metrics.get('LRU-seconds')
+	    p.space_used = space_metrics.get('used')
+	    p.space_free = space_metrics.get('free')
 	yield p
     fh.close()
 
