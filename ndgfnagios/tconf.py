@@ -157,7 +157,8 @@ def load_tconf(path, visitor):
 	elif keyword == 'template':
 	    visitor.template(*args, **kwargs)
 	else:
-	    parse_error('Unknown directive %s or missing indentation before '
+	    parse_error(path, lineno,
+			'Unknown directive %s or missing indentation before '
 			'macro name'%keyword)
     if not section_name is None:
 	visitor.leave_section(section_name)
