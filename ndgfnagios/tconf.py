@@ -45,21 +45,22 @@ class TconfTemplateVisitor(TconfCustomVisitor):
 	    path = os.path.join(dir, fn)
 	    if os.path.exists(path):
 		return path
-	raise RuntimeError('Cannot find %s in %s.' % (fn, self.template_dirs))
+
+    def find_template(self, name):
+	for suffix, handler in _template_handlers:
+	    path = self.find_file(name + suffix)
+	    if path:
+		return path, handler
 
     def get_template(self, name, from_template):
-	path = self.find_file(name)
+	path, handler = self.find_template(name)
 	return from_template.__class__.from_filename(
 		    path,
 		    namespace = from_template.namespace,
 		    get_template = from_template.get_template)
 
     def template(self, name, *formal_args, **formal_kwargs):
-	found = False
-	for suffix, handler in _template_handlers:
-	    path = self.find_file(name + suffix)
-	    if path:
-		break
+	path, handler = self.find_template(name)
 	if path is None:
 	    suffixes = map(lambda h: h[0], _template_handlers)
 	    raise AttributeError("Cannot find template named %s; scanned dirs "

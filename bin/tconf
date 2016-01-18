@@ -16,22 +16,44 @@ Options:
 			for templates.
 """
 
+class TconfDependenciesVisitor(TconfTemplateVisitor):
+
+    def __init__(self, **kwargs):
+	TconfTemplateVisitor.__init__(self, **kwargs)
+	self.template_files = []
+
+    def invoke(self, macro_name, *args, **kwargs):
+	pass
+
+    def template(self, name, *formal_args, **formal_kwargs):
+	self.template_files.append(self.find_template(name)[0])
+
+
 template_dirs = []
+do_depend = False
 try:
-    opts, args = gnu_getopt(sys.argv[1:], 'I:', ['help'])
+    opts, args = gnu_getopt(sys.argv[1:], 'I:', ['help', 'depend'])
     for opt, arg in opts:
 	if opt == '--help':
 	    sys.stdout.write(usage)
 	    sys.exit(0)
 	elif opt == '-I':
 	    template_dirs.insert(0, arg)
+	elif opt == '--depend':
+	    do_depend = True
 	else:
 	    assert False
-    if len(args) != 1:
+    if not do_depend and len(args) != 1:
 	raise GetoptError("Expecting a single non-option argument.")
 except GetoptError, err:
     sys.stderr.write('%s\nNeed --help?\n'%err)
     sys.exit(os.EX_USAGE)
 
-visitor = TconfTemplateVisitor(template_dirs = template_dirs)
-load_tconf(args[0], visitor)
+if do_depend:
+    for arg in args:
+	visitor = TconfDependenciesVisitor(template_dirs = template_dirs)
+	load_tconf(arg, visitor)
+	print '%s: %s' % (arg, ' '.join(visitor.template_files))
+else:
+    visitor = TconfTemplateVisitor(template_dirs = template_dirs)
+    load_tconf(args[0], visitor)
