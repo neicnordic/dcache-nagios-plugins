@@ -13,7 +13,7 @@ def report(code, msg):
     report_msgs.append(msg)
 
 def show_percent(x):
-    return '%.1f %%' % x
+    return '%.1f %%' % (x * 100)
 
 le = lambda x, y: x <= y
 ge = lambda x, y: x >= y
@@ -68,7 +68,10 @@ def print_time(hdr, amount):
     sys.stdout.write('%s: %s\n' % (hdr, show_time(amount)))
 
 def print_space(hdr, amount):
-    sys.stdout.write('%s: %s\n' % (hdr, show_size(amount)))
+    if amount is None:
+	sys.stdout.write('%s: unknown\n')
+    else:
+	sys.stdout.write('%s: %s\n' % (hdr, show_size(amount)))
 
 info_url = None
 pool_name = None
@@ -112,6 +115,7 @@ if pool is None:
     sys.stdout.write('Pool not found.')
     sys.exit(2)
 else:
+    report_msgs.append('total = %s' % show_size(pool.space_total))
     if heartbeat_threshold:
 	check_heartbeat(pool, heartbeat_threshold)
     if precious_threshold:
@@ -122,8 +126,6 @@ else:
 	check_precious_over_total(pool, precious_over_total_threshold)
     if nonprecious_over_total_threshold:
 	check_nonprecious_over_total(pool, nonprecious_over_total_threshold)
-    if report_msgs == []:
-	report_msgs = ['pool present']
     sys.stdout.write(', '.join(report_msgs) + '\n')
     print_time('Heartbeat', pool.last_heartbeat)
     print_space('Total space', pool.space_total)

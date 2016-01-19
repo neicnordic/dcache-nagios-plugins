@@ -28,6 +28,18 @@ DCACHE = DCacheTags()
 class PoolInfo(object):
     def __init__(self, name):
 	self.name = name
+	self.enabled = None
+	self.read_only = None
+	self.last_heartbeat = None
+	self.poolgrouprefs = []
+	self.space_total = None
+	self.space_break_even = None
+	self.space_precious = None
+	self.space_removable = None
+	self.space_gap = None
+	self.space_LRU_seconds = None
+	self.space_used = None
+	self.space_free = None
 
 class PoolgroupInfo(object):
     def __init__(self, name, linkrefs = [], poolrefs = []):
