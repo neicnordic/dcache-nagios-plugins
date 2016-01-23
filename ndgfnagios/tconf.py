@@ -51,6 +51,10 @@ class TconfTemplateVisitor(TconfCustomVisitor):
 	    path = self.find_file(name + suffix)
 	    if path:
 		return path, handler
+	suffixes = map(lambda h: h[0], _template_handlers)
+	raise AttributeError("Cannot find template named %s; scanned dirs "
+			     "%s and suffixes %s."
+		%(name, ', '.join(self.template_dirs), ', '.join(suffixes)))
 
     def get_template(self, name, from_template):
 	path, handler = self.find_template(name)
@@ -61,11 +65,6 @@ class TconfTemplateVisitor(TconfCustomVisitor):
 
     def template(self, name, *formal_args, **formal_kwargs):
 	path, handler = self.find_template(name)
-	if path is None:
-	    suffixes = map(lambda h: h[0], _template_handlers)
-	    raise AttributeError("Cannot find template named %s; scanned dirs "
-				 "%s and suffixes %s."
-		    %(name, ', '.join(self.template_dirs), ', '.join(suffixes)))
 	templ = handler(self, path, get_template = self.get_template)
 	def f(self, *args, **kwargs):
 	    for k, v in formal_kwargs.iteritems():
