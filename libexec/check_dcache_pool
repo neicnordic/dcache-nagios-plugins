@@ -110,7 +110,12 @@ except GetoptError, err:
     sys.stderr.write('%s\n' % err)
     sys.exit(64)
 
-pool = load_pool(info_url + '/pools/' + pool_name)
+try:
+    pool = load_pool(info_url + '/pools/' + pool_name)
+except IOError, exn:
+    sys.stderr.write('Failed to fetch pool info: %s' % exn)
+    sys.exit(3)
+
 if pool is None:
     sys.stdout.write('Pool not found.')
     sys.exit(2)
