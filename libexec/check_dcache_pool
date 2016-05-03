@@ -120,7 +120,8 @@ if pool is None:
     sys.stdout.write('Pool not found.')
     sys.exit(2)
 else:
-    report_msgs.append('total = %s' % show_size(pool.space_total))
+    if pool.space_total:
+	report_msgs.append('total = %s' % show_size(pool.space_total))
     if heartbeat_threshold:
 	check_heartbeat(pool, heartbeat_threshold)
     if precious_threshold:
