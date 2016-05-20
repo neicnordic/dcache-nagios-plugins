@@ -14,7 +14,7 @@ error_re = re.compile('|'.join([
 ]))
 inform_re = re.compile('|'.join([
   r'\s*([a-zA-Z0-9_-]+\s+){2}\[\d+\]\s+tape_maintenance\s*$',
-  r'\s*([a-zA-Z0-9_-]+\s+){2}\[\d+\]\s+Initializing\s*$',
+  r'\s*([a-zA-Z0-9_-]+\s+){2}\[\d+\]\s+(Initializing|Loading...)\s*$',
 ]))
 ignore_re = re.compile('|'.join([
   r'\s+$',
