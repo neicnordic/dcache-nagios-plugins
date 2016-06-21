@@ -12,8 +12,8 @@ def check_linkgroup(info_url, linkgroup):
     fh.close()
     metric = doc.find('.//{http://www.dcache.org/2008/01/Info}metric')
     if metric is None:
-	sys.stdout.write('Cannot find metric.\n')
-	sys.exit(3)
+        sys.stdout.write('Cannot find metric.\n')
+        sys.exit(3)
     av = int(metric.text)
     sys.stdout.write('%s available\n' % show_size(av))
     if av < 0: sys.exit(2)
@@ -26,22 +26,22 @@ linkgroup = None
 try:
     opts, args = gnu_getopt(sys.argv[1:], 'H:p:U:l:', ['linkgroup'])
     for opt, arg in opts:
-	if opt == '-H':
-	    info_host = arg
-	elif opt == '-p':
-	    info_port = arg
-	elif opt == '-U':
-	    info_url = arg
-	elif opt in ['-l', '--linkgroup']:
-	    linkgroup = int(arg)
-	else:
-	    assert False
+        if opt == '-H':
+            info_host = arg
+        elif opt == '-p':
+            info_port = arg
+        elif opt == '-U':
+            info_url = arg
+        elif opt in ['-l', '--linkgroup']:
+            linkgroup = int(arg)
+        else:
+            assert False
     if info_url is None:
-	if info_host is None:
-	    raise GetoptError('Either -H or -U must be specified.')
-	info_url = 'http://%s:%d/info' % (info_host, info_port)
+        if info_host is None:
+            raise GetoptError('Either -H or -U must be specified.')
+        info_url = 'http://%s:%d/info' % (info_host, info_port)
     if linkgroup is None:
-	raise GetoptError('The linkgroup must be specified.')
+        raise GetoptError('The linkgroup must be specified.')
 except GetoptError, err:
     sys.stderr.write('%s\n'%err)
     sys.exit(3)

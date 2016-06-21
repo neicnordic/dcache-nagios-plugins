@@ -22,124 +22,124 @@ except ImportError:
 
 class DCacheTags(object):
     def __getattr__(self, name):
-	return '{http://www.dcache.org/2008/01/Info}' + name
+        return '{http://www.dcache.org/2008/01/Info}' + name
 DCACHE = DCacheTags()
 
 class PoolInfo(object):
     def __init__(self, name):
-	self.name = name
-	self.enabled = None
-	self.read_only = None
-	self.last_heartbeat = None
-	self.poolgrouprefs = []
-	self.space_total = None
-	self.space_break_even = None
-	self.space_precious = None
-	self.space_removable = None
-	self.space_gap = None
-	self.space_LRU_seconds = None
-	self.space_used = None
-	self.space_free = None
+        self.name = name
+        self.enabled = None
+        self.read_only = None
+        self.last_heartbeat = None
+        self.poolgrouprefs = []
+        self.space_total = None
+        self.space_break_even = None
+        self.space_precious = None
+        self.space_removable = None
+        self.space_gap = None
+        self.space_LRU_seconds = None
+        self.space_used = None
+        self.space_free = None
 
 class PoolgroupInfo(object):
     def __init__(self, name, linkrefs = [], poolrefs = []):
-	self.name = name
-	self.linkrefs = linkrefs
+        self.name = name
+        self.linkrefs = linkrefs
 
-	self.total_space = None
-	self.free_space = None
-	self.removable_space = None
-	self.precious_space = None
-	self.used_space = None
+        self.total_space = None
+        self.free_space = None
+        self.removable_space = None
+        self.precious_space = None
+        self.used_space = None
 
-	self.poolrefs = poolrefs
+        self.poolrefs = poolrefs
 
     @property
     def available_space(self):
-	return self.removable_space + self.free_space
+        return self.removable_space + self.free_space
 
     @property
     def nonprecious_space(self):
-	return self.total_space - self.precious_space
+        return self.total_space - self.precious_space
 
     def __repr__(self):
-	return 'PoolgroupInfo(%r, %d, %d, %d, %d, %d, {%s}, {%s})' \
-	    %(self.name,
-	      self.total_space,
-	      self.free_space,
-	      self.removable_space,
-	      self.precious_space,
-	      self.used_space,
-	      ', '.join(self.linkrefs),
-	      ', '.join(self.poolrefs))
+        return 'PoolgroupInfo(%r, %d, %d, %d, %d, %d, {%s}, {%s})' \
+            %(self.name,
+              self.total_space,
+              self.free_space,
+              self.removable_space,
+              self.precious_space,
+              self.used_space,
+              ', '.join(self.linkrefs),
+              ', '.join(self.poolrefs))
 
 def _scan_metric(metric_elt):
     t = metric_elt.get('type')
     s = metric_elt.text
     if t == 'boolean':
-	x = {'true': True, 'false': False}[s]
+        x = {'true': True, 'false': False}[s]
     elif t == 'integer':
-	x = int(s)
+        x = int(s)
     elif t == 'float':
-	x = float(s)
+        x = float(s)
     else:
-	raise AssertionError('Unsupported type %s.'%t)
+        raise AssertionError('Unsupported type %s.'%t)
     return (metric_elt.get('name'), x)
 
 def load_pools(url):
     fh = urllib.urlopen(url)
     doc = etree.parse(fh)
     for e_p in doc.findall('.//' + DCACHE.pools + '/' + DCACHE.pool):
-	name = e_p.get('name')
-	metrics = dict(map(_scan_metric, e_p.findall(DCACHE.metric)))
-	p = PoolInfo(name)
-	p.enabled = metrics.get('enabled')
-	p.read_only = metrics.get('read-only')
-	p.last_heartbeat = metrics.get('last-heartbeat')
-	p.poolgrouprefs = [e.get('name') for e in
-		e_p.findall(DCACHE.poolgroups + '/' + DCACHE.poolgroupref)]
-	e_space = e_p.find(DCACHE.space)
-	if e_space:
-	    space_metrics = dict(map(_scan_metric, e_space.findall(DCACHE.metric)))
-	    p.space_total = space_metrics.get('total')
-	    p.space_break_even = space_metrics.get('break-even')
-	    p.space_precious = space_metrics.get('precious')
-	    p.space_removable = space_metrics.get('removable')
-	    p.space_gap = space_metrics.get('gap')
-	    p.space_LRU_seconds = space_metrics.get('LRU-seconds')
-	    p.space_used = space_metrics.get('used')
-	    p.space_free = space_metrics.get('free')
-	yield p
+        name = e_p.get('name')
+        metrics = dict(map(_scan_metric, e_p.findall(DCACHE.metric)))
+        p = PoolInfo(name)
+        p.enabled = metrics.get('enabled')
+        p.read_only = metrics.get('read-only')
+        p.last_heartbeat = metrics.get('last-heartbeat')
+        p.poolgrouprefs = [e.get('name') for e in
+                e_p.findall(DCACHE.poolgroups + '/' + DCACHE.poolgroupref)]
+        e_space = e_p.find(DCACHE.space)
+        if e_space:
+            space_metrics = dict(map(_scan_metric, e_space.findall(DCACHE.metric)))
+            p.space_total = space_metrics.get('total')
+            p.space_break_even = space_metrics.get('break-even')
+            p.space_precious = space_metrics.get('precious')
+            p.space_removable = space_metrics.get('removable')
+            p.space_gap = space_metrics.get('gap')
+            p.space_LRU_seconds = space_metrics.get('LRU-seconds')
+            p.space_used = space_metrics.get('used')
+            p.space_free = space_metrics.get('free')
+        yield p
     fh.close()
 
 def load_pool(url):
     pools = list(load_pools(url))
     if len(pools) == 1:
-	return pools[0]
+        return pools[0]
     elif len(pools) == 0:
-	return None
+        return None
     else:
-	raise RuntimeError('Request for single pool gave %d results.' % len(pools))
+        raise RuntimeError('Request for single pool gave %d results.' % len(pools))
 
 def load_domain_poolnames(info_url):
     fh = urllib.urlopen(info_url + '/domains')
     doc = etree.parse(fh)
     for domain_ele in doc.findall(DCACHE.domains + '/' + DCACHE.domain):
-	dn = domain_ele.get('name')
-	pns = set()
-	for pool_ele in domain_ele.findall(DCACHE.cells + '/' + DCACHE.cell):
-	    for metric_ele in pool_ele.findall(DCACHE.metric):
-		if metric_ele.get('name') == 'class':
-		    if metric_ele.text == 'Pool':
-			pns.add(pool_ele.get('name'))
-		    break
-	if len(pns) > 0:
-	    yield dn, pns
+        dn = domain_ele.get('name')
+        pns = set()
+        for pool_ele in domain_ele.findall(DCACHE.cells + '/' + DCACHE.cell):
+            for metric_ele in pool_ele.findall(DCACHE.metric):
+                if metric_ele.get('name') == 'class':
+                    if metric_ele.text == 'Pool':
+                        pns.add(pool_ele.get('name'))
+                    break
+        if len(pns) > 0:
+            yield dn, pns
     fh.close()
 
 def load_domain_of_pool_dict(info_url):
     return dict((pn, dn) for dn, pns in load_domain_poolnames(info_url)
-			 for pn in pns)
+                         for pn in pns)
 
 def load_pools_of_domain_dict(info_url):
     return dict((dn, pns) for dn, pns in load_domain_poolnames(info_url))
@@ -148,17 +148,17 @@ def load_poolgroups(url):
     fh = urllib.urlopen(url)
     doc = etree.parse(fh)
     for e_g in doc.findall('.//' + DCACHE.poolgroup):
-	name = e_g.get('name')
-	linkrefs = [e.get('name') for e in
-		    e_g.findall(DCACHE.links + '/' + DCACHE.linkref)]
-	poolrefs = [e.get('name') for e in
-		    e_g.findall(DCACHE.pools + '/' + DCACHE.poolref)]
-	space = dict(map(_scan_metric, e_g.findall(DCACHE.space+'/'+DCACHE.metric)))
-	pg = PoolgroupInfo(name, linkrefs = linkrefs, poolrefs = poolrefs)
-	pg.total_space = space['total']
-	pg.free_space = space['free']
-	pg.removable_space = space['removable']
-	pg.precious_space = space['precious']
-	pg.used_space = space['used']
-	yield pg
+        name = e_g.get('name')
+        linkrefs = [e.get('name') for e in
+                    e_g.findall(DCACHE.links + '/' + DCACHE.linkref)]
+        poolrefs = [e.get('name') for e in
+                    e_g.findall(DCACHE.pools + '/' + DCACHE.poolref)]
+        space = dict(map(_scan_metric, e_g.findall(DCACHE.space+'/'+DCACHE.metric)))
+        pg = PoolgroupInfo(name, linkrefs = linkrefs, poolrefs = poolrefs)
+        pg.total_space = space['total']
+        pg.free_space = space['free']
+        pg.removable_space = space['removable']
+        pg.precious_space = space['precious']
+        pg.used_space = space['used']
+        yield pg
     fh.close()

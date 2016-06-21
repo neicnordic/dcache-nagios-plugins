@@ -10,7 +10,7 @@ pool_error_messages = [
 error_re = re.compile('|'.join([
     r'.*\bFile could not be opened\b',
     r'\s*(?P<pool>[a-zA-Z0-9_-]+)\s+[a-zA-Z0-9_-]+\s+\[\d+\]\s+(' \
-	+ '|'.join(pool_error_messages) + ')',
+        + '|'.join(pool_error_messages) + ')',
 ]))
 inform_re = re.compile('|'.join([
   r'\s*([a-zA-Z0-9_-]+\s+){2}\[\d+\]\s+tape_maintenance\s*$',
@@ -46,39 +46,39 @@ def check_url(url):
     error_count = 0
     unknown_count = 0
     for ln in fh:
-	line_count += 1
-	mo = re.match(error_re, ln)
-	if mo:
-	    error_count += 1
-	    msgs.append('E ' + ln)
-	    try:
-		error_pools.append(mo.group('pool'))
-	    except IndexError:
-		pass
-	elif re.match(inform_re, ln):
-	    msgs.append('N ' + ln)
-	elif not re.match(ignore_re, ln):
-	    unknown_count += 1
-	    msgs.append('U ' + ln)
+        line_count += 1
+        mo = re.match(error_re, ln)
+        if mo:
+            error_count += 1
+            msgs.append('E ' + ln)
+            try:
+                error_pools.append(mo.group('pool'))
+            except IndexError:
+                pass
+        elif re.match(inform_re, ln):
+            msgs.append('N ' + ln)
+        elif not re.match(ignore_re, ln):
+            unknown_count += 1
+            msgs.append('U ' + ln)
     fh.close()
     if error_count:
-	if error_pools:
-	    print 'Found %d errors affecting %s.' \
-		% (error_count, ', '.join(error_pools))
-	else:
-	    print 'Found %d errors.' % error_count
-	status_code = 2
+        if error_pools:
+            print 'Found %d errors affecting %s.' \
+                % (error_count, ', '.join(error_pools))
+        else:
+            print 'Found %d errors.' % error_count
+        status_code = 2
     elif unknown_count:
-	print 'Some lines were not recognised, please update the probe.'
-	status_code = 3
+        print 'Some lines were not recognised, please update the probe.'
+        status_code = 3
     elif line_count < 20:
-	print 'The output is suspiciously short.'
-	print '%s gives only %d lines of output.'%(' '.join(cmd), line_count)
-	map(sys.stdout.write, msgs)
-	status_code = 3
+        print 'The output is suspiciously short.'
+        print '%s gives only %d lines of output.'%(' '.join(cmd), line_count)
+        map(sys.stdout.write, msgs)
+        status_code = 3
     else:
-	print 'Scanned %d lines'%line_count
-	status_code = 0
+        print 'Scanned %d lines'%line_count
+        status_code = 0
     map(sys.stdout.write, msgs)
     sys.exit(status_code)
 
@@ -87,16 +87,16 @@ page_path = None
 try:
     opts, args = gnu_getopt(sys.argv[1:], 'H:g:')
     for opt, arg in opts:
-	if opt == '-H':
-	    base_url = 'http://%s:2288'%arg
-	elif opt == '-g':
-	    page_path = '/pools/list/PoolManager/%s/spaces'%arg
-	else:
-	    assert False
+        if opt == '-H':
+            base_url = 'http://%s:2288'%arg
+        elif opt == '-g':
+            page_path = '/pools/list/PoolManager/%s/spaces'%arg
+        else:
+            assert False
     if base_url is None:
-	raise GetoptError('The -H option is mandatory.')
+        raise GetoptError('The -H option is mandatory.')
     if page_path is None:
-	raise GetoptError('The -g option is mandatory.')
+        raise GetoptError('The -g option is mandatory.')
 except GetoptError, xc:
     sys.stderr.write('%s\n'%xc)
     sys.exit(3)

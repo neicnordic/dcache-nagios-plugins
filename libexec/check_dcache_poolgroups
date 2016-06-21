@@ -9,60 +9,60 @@ from ndgfnagios import tconf
 from ndgfnagios.utils import size_float, show_size
 from ndgfnagios.utils import counted_noun
 from ndgfnagios.dcacheinfo import load_poolgroups, load_pools, \
-				  load_domain_poolnames
+                                  load_domain_poolnames
 
 class NagiosCommand(object):
 
     def __init__(self, nagcmd_fh):
-	self._nagcmd_fh = nagcmd_fh
+        self._nagcmd_fh = nagcmd_fh
 
     def process_service_check_result(self, host, svc, rc, msg):
-	t = int(time.time())
-	self._nagcmd_fh.write('[%d] PROCESS_SERVICE_CHECK_RESULT;%s;%s;%d;%s\n'
-			      % (t, host, svc, rc, msg))
+        t = int(time.time())
+        self._nagcmd_fh.write('[%d] PROCESS_SERVICE_CHECK_RESULT;%s;%s;%d;%s\n'
+                              % (t, host, svc, rc, msg))
 
 class NagiosResult(object):
 
     def __init__(self, ok_message):
-	self._ok_message = ok_message
-	self.retcode = 0
-	self._messages = []
+        self._ok_message = ok_message
+        self.retcode = 0
+        self._messages = []
 
     def update(self, retcode, msg):
-	if retcode > self.retcode:
-	    self.retcode = retcode
-	self._messages.append((retcode, msg))
+        if retcode > self.retcode:
+            self.retcode = retcode
+        self._messages.append((retcode, msg))
 
     @property
     def message(self):
-	if self._messages:
-	    min_rc = self.retcode and 1
-	    msg = ' '.join(msg for rc, msg in self._messages if rc >= min_rc)
-	else:
-	    msg = self._ok_message
-	return msg.strip()
+        if self._messages:
+            min_rc = self.retcode and 1
+            msg = ' '.join(msg for rc, msg in self._messages if rc >= min_rc)
+        else:
+            msg = self._ok_message
+        return msg.strip()
 
 class PassiveChecker(NagiosCommand):
 
     _ok_message = 'Service is ok.'
 
     def __init__(self, host, nagcmd_fh = sys.stdout):
-	NagiosCommand.__init__(self, nagcmd_fh)
-	self._host = host
-	self._results = {}
+        NagiosCommand.__init__(self, nagcmd_fh)
+        self._host = host
+        self._results = {}
 
     def status_for_service(self, service):
-	if not service in self._results:
-	    self._results[service] = NagiosResult(self._ok_message)
-	return self._results[service]
+        if not service in self._results:
+            self._results[service] = NagiosResult(self._ok_message)
+        return self._results[service]
 
     def report_passive(self):
-	service_count = 0
-	for svc_name, r in self._results.iteritems():
-	    self.process_service_check_result(self._host, svc_name, r.retcode,
-					      r.message)
-	    service_count += 1
-	return service_count
+        service_count = 0
+        for svc_name, r in self._results.iteritems():
+            self.process_service_check_result(self._host, svc_name, r.retcode,
+                                              r.message)
+            service_count += 1
+        return service_count
 
 class PoolsetChecker(PassiveChecker):
 
@@ -71,86 +71,86 @@ class PoolsetChecker(PassiveChecker):
     _critical_if_all_ro = False
 
     def __init__(self, args, nagcmd_fh = sys.stdout, service_suffix = ''):
-	PassiveChecker.__init__(self, args.host, nagcmd_fh = nagcmd_fh)
-	self._args = args
-	self._svc_template = args.site_prefix + self._svc_base_template
-	self._readability_service = service_suffix
-	self._writability_service = service_suffix
+        PassiveChecker.__init__(self, args.host, nagcmd_fh = nagcmd_fh)
+        self._args = args
+        self._svc_template = args.site_prefix + self._svc_base_template
+        self._readability_service = service_suffix
+        self._writability_service = service_suffix
 
     def status_for(self, poolset_name, metric):
-	d = dict(poolset = poolset_name, metric = metric)
-	service_name = (self._svc_template % d).strip()
-	return self.status_for_service(service_name)
+        d = dict(poolset = poolset_name, metric = metric)
+        service_name = (self._svc_template % d).strip()
+        return self.status_for_service(service_name)
 
     def check_pools(self, ps, poolrefs, poolset_name):
-	poolref_count = len(poolrefs)
-	pools_are_phrase = counted_noun(poolref_count, 'pool is', 'pools are')
-	r = self.status_for(poolset_name, self._readability_service)
-	r.update(0, 'All %s ok.' % pools_are_phrase)
+        poolref_count = len(poolrefs)
+        pools_are_phrase = counted_noun(poolref_count, 'pool is', 'pools are')
+        r = self.status_for(poolset_name, self._readability_service)
+        r.update(0, 'All %s ok.' % pools_are_phrase)
 
-	missing_count = hc_count = hw_count = ro_count = 0
-	missing_pools = []
-	missing_heartbeat = []
-	hc_pools = []
-	hw_pools = []
-	ro_pools = []
-	for pn in poolrefs:
-	    if not pn in ps:
-		missing_count += 1
-		missing_pools.append(pn)
-		continue
-	    p = ps[pn]
-	    if p.read_only:
-		ro_count += 1
-		ro_pools.append(p.name)
-	    if p.last_heartbeat is None:
-		missing_heartbeat.append(p.name)
-	    elif p.last_heartbeat < 0 \
-		 or self._args.heartbeat_limit[0] \
-		    and p.last_heartbeat > self._args.heartbeat_limit[0]:
-		hc_count += 1
-		hc_pools.append(p.name)
-	    elif self._args.heartbeat_limit[1] \
-		    and p.last_heartbeat > self._args.heartbeat_limit[1]:
-		hw_count += 1
-		hw_pools.append(p.name)
-	def report_pools(r, count, pools, retcode, msg_s, msg_pl):
-	    if count > 0:
-		pools = list(pools)
-		pools.sort()
-		msg = '%s of %s %s' % (count, poolref_count,
-				       poolref_count == 1 and msg_s or msg_pl)
-		if self._args.list_pools:
-		    r.update(retcode, '%s (%s).'%(msg, ', '.join(pools)))
-		else:
-		    r.update(retcode, msg + '.')
+        missing_count = hc_count = hw_count = ro_count = 0
+        missing_pools = []
+        missing_heartbeat = []
+        hc_pools = []
+        hw_pools = []
+        ro_pools = []
+        for pn in poolrefs:
+            if not pn in ps:
+                missing_count += 1
+                missing_pools.append(pn)
+                continue
+            p = ps[pn]
+            if p.read_only:
+                ro_count += 1
+                ro_pools.append(p.name)
+            if p.last_heartbeat is None:
+                missing_heartbeat.append(p.name)
+            elif p.last_heartbeat < 0 \
+                 or self._args.heartbeat_limit[0] \
+                    and p.last_heartbeat > self._args.heartbeat_limit[0]:
+                hc_count += 1
+                hc_pools.append(p.name)
+            elif self._args.heartbeat_limit[1] \
+                    and p.last_heartbeat > self._args.heartbeat_limit[1]:
+                hw_count += 1
+                hw_pools.append(p.name)
+        def report_pools(r, count, pools, retcode, msg_s, msg_pl):
+            if count > 0:
+                pools = list(pools)
+                pools.sort()
+                msg = '%s of %s %s' % (count, poolref_count,
+                                       poolref_count == 1 and msg_s or msg_pl)
+                if self._args.list_pools:
+                    r.update(retcode, '%s (%s).'%(msg, ', '.join(pools)))
+                else:
+                    r.update(retcode, msg + '.')
 
-	# Report missing
-	report_pools(r, missing_count, missing_pools, 2,
-		     'pool lacks metrics', 'pools lack metrics')
-	report_pools(r, len(missing_heartbeat), missing_heartbeat, 0,
-		     'pool lacks heartbeat', 'pools lack heartbeats')
+        # Report missing
+        report_pools(r, missing_count, missing_pools, 2,
+                     'pool lacks metrics', 'pools lack metrics')
+        report_pools(r, len(missing_heartbeat), missing_heartbeat, 0,
+                     'pool lacks heartbeat', 'pools lack heartbeats')
 
-	# Read availability
-	report_pools(r, hc_count, hc_pools, 2,
-		     'pool has critical heartbeat',
-		     'pools have critical heartbeat')
-	report_pools(r, hw_count, hw_pools, 1,
-		     'pool has high heartbeat',
-		     'pools have high heartbeat')
+        # Read availability
+        report_pools(r, hc_count, hc_pools, 2,
+                     'pool has critical heartbeat',
+                     'pools have critical heartbeat')
+        report_pools(r, hw_count, hw_pools, 1,
+                     'pool has high heartbeat',
+                     'pools have high heartbeat')
 
-	# Write availability
-	r = self.status_for(poolset_name, self._writability_service)
-	if self._readability_service != self._writability_service:
-	    r.update(0, 'All %s writable.' % pools_are_phrase)
-	if self._critical_if_all_ro and ro_count == len(poolrefs):
-	    if ro_count == 0:
-		r.update(1, 'Unwritable empty poolgroup.')
-	    else:
-		r.update(2, 'All %s read-only.' % pools_are_phrase)
-	else:
-	    report_pools(r, ro_count, ro_pools, 1,
-			 'pool is read-only', 'pools are read-only')
+        # Write availability
+        r = self.status_for(poolset_name, self._writability_service)
+        if self._readability_service != self._writability_service:
+            r.update(0, 'All %s writable.' % pools_are_phrase)
+        if self._critical_if_all_ro and ro_count == len(poolrefs):
+            if ro_count == 0:
+                r.update(1, 'Unwritable empty poolgroup.')
+            else:
+                r.update(2, 'All %s read-only.' % pools_are_phrase)
+        else:
+            report_pools(r, ro_count, ro_pools, 1,
+                         'pool is read-only', 'pools are read-only')
 
 class PoolgroupChecker(PoolsetChecker):
 
@@ -158,274 +158,274 @@ class PoolgroupChecker(PoolsetChecker):
     _critical_if_all_ro = True
 
     def __init__(self, args, nagcmd_fh = sys.stdout, service_suffix = ''):
-	self._args = args
-	PoolsetChecker.__init__(self, args, nagcmd_fh = nagcmd_fh,
-				service_suffix = service_suffix)
-	self._svc_template = args.poolgroup_prefix + self._svc_base_template
+        self._args = args
+        PoolsetChecker.__init__(self, args, nagcmd_fh = nagcmd_fh,
+                                service_suffix = service_suffix)
+        self._svc_template = args.poolgroup_prefix + self._svc_base_template
 
     def check_poolgroup(self, g):
-	if self._args.available_enabled:
-	    r = self.status_for(g.name, self._args.available_service)
-	    if g.total_space:
-		r.update(0, '%s (%.2g) available.' %
-		    (show_size(g.available_space),
-		     g.available_space / float(g.total_space)))
-	if self._args.free_enabled:
-	    r = self.status_for(g.name, self._args.free_service)
-	    if g.total_space:
-		r.update(0, '%s (%.2g) free.' %
-		    (show_size(g.free_space),
-		     g.free_space / float(g.total_space)))
-	if self._args.nonprecious_enabled:
-	    r = self.status_for(g.name, self._args.nonprecious_service)
-	    if g.total_space and g.precious_space:
-		r.update(0, '%s (%.2g) nonprecious.' %
-		    (show_size(g.nonprecious_space),
-		     g.nonprecious_space / float(g.total_space)))
+        if self._args.available_enabled:
+            r = self.status_for(g.name, self._args.available_service)
+            if g.total_space:
+                r.update(0, '%s (%.2g) available.' %
+                    (show_size(g.available_space),
+                     g.available_space / float(g.total_space)))
+        if self._args.free_enabled:
+            r = self.status_for(g.name, self._args.free_service)
+            if g.total_space:
+                r.update(0, '%s (%.2g) free.' %
+                    (show_size(g.free_space),
+                     g.free_space / float(g.total_space)))
+        if self._args.nonprecious_enabled:
+            r = self.status_for(g.name, self._args.nonprecious_service)
+            if g.total_space and g.precious_space:
+                r.update(0, '%s (%.2g) nonprecious.' %
+                    (show_size(g.nonprecious_space),
+                     g.nonprecious_space / float(g.total_space)))
 
-	# Check utilization.
-	def ckspace(r, rlimit, alimit, free_space, retcode, msg):
-	    c0 = c1 = self._args.conjunct
-	    if not rlimit is None:
-		c0 = free_space < rlimit*g.total_space
-	    if not alimit is None:
-		c1 = free_space < alimit
-	    if c0 and c1 or (not self._args.conjunct and (c0 or c1)):
-		r.update(retcode, msg)
-		return True
-	    return False
-	def ckspace2(r, rlimits, alimits, free_space, what):
-	    msg0 = what.capitalize() + ' space is critically low.'
-	    msg1 = what.capitalize() + ' space is low.'
-	    ckspace(r, rlimits[0], alimits[0], free_space, 2, msg0) or \
-	    ckspace(r, rlimits[1], alimits[1], free_space, 1, msg1)
-	if g.total_space > 0:
-	    if self._args.available_enabled:
-		r = self.status_for(g.name, self._args.available_service)
-		ckspace2(r, self._args.available_rlimit, self._args.available_alimit,
-			 g.available_space, 'available')
-	    if self._args.free_enabled:
-		r = self.status_for(g.name, self._args.free_service)
-		ckspace2(r, self._args.free_rlimit, self._args.free_alimit,
-			 g.free_space, 'free')
-	    if self._args.nonprecious_enabled:
-		r = self.status_for(g.name, self._args.nonprecious_service)
-		ckspace2(r, self._args.nonprecious_rlimit, self._args.nonprecious_alimit,
-			 g.nonprecious_space, 2, 'non-precious')
-	else:
-	    if self._args.free_enabled or self._args.nonprecious_enabled:
-		for s in set([self._args.free_service, self._args.nonprecious_service]):
-		    r = self.status_for(g.name, s)
-		    r.update(0, 'No space allocated.')
+        # Check utilization.
+        def ckspace(r, rlimit, alimit, free_space, retcode, msg):
+            c0 = c1 = self._args.conjunct
+            if not rlimit is None:
+                c0 = free_space < rlimit*g.total_space
+            if not alimit is None:
+                c1 = free_space < alimit
+            if c0 and c1 or (not self._args.conjunct and (c0 or c1)):
+                r.update(retcode, msg)
+                return True
+            return False
+        def ckspace2(r, rlimits, alimits, free_space, what):
+            msg0 = what.capitalize() + ' space is critically low.'
+            msg1 = what.capitalize() + ' space is low.'
+            ckspace(r, rlimits[0], alimits[0], free_space, 2, msg0) or \
+            ckspace(r, rlimits[1], alimits[1], free_space, 1, msg1)
+        if g.total_space > 0:
+            if self._args.available_enabled:
+                r = self.status_for(g.name, self._args.available_service)
+                ckspace2(r, self._args.available_rlimit, self._args.available_alimit,
+                         g.available_space, 'available')
+            if self._args.free_enabled:
+                r = self.status_for(g.name, self._args.free_service)
+                ckspace2(r, self._args.free_rlimit, self._args.free_alimit,
+                         g.free_space, 'free')
+            if self._args.nonprecious_enabled:
+                r = self.status_for(g.name, self._args.nonprecious_service)
+                ckspace2(r, self._args.nonprecious_rlimit, self._args.nonprecious_alimit,
+                         g.nonprecious_space, 2, 'non-precious')
+        else:
+            if self._args.free_enabled or self._args.nonprecious_enabled:
+                for s in set([self._args.free_service, self._args.nonprecious_service]):
+                    r = self.status_for(g.name, s)
+                    r.update(0, 'No space allocated.')
 
 def cwpair(t):
     def f(s):
-	if ',' in s:
-	    s0, s1 = s.split(',', 1)
-	    return s0 and t(s0), s1 and t(s1)
-	else:
-	    return t(s), None
+        if ',' in s:
+            s0, s1 = s.split(',', 1)
+            return s0 and t(s0), s1 and t(s1)
+        else:
+            return t(s), None
     return f
 
 def cslist(t):
     def f(s):
-	return map(t, s.split(','))
+        return map(t, s.split(','))
     return f
 try:
     ap = argparse.ArgumentParser()
     ap.add_argument('-H', dest = 'host', required = True,
-	    help = 'Target host for passive results.')
+            help = 'Target host for passive results.')
     ap.add_argument('-U', dest = 'url',
-	    help = 'The info URL under which to make queries.')
+            help = 'The info URL under which to make queries.')
     ap.add_argument('-a', dest = 'all', action = 'store_true', default = False,
-	    help = 'Check all poolgroups.')
+            help = 'Check all poolgroups.')
 
     ap.add_argument('-A', dest = 'conjunct',
-	    action = 'store_true', default = False,
-	    help = 'If absolute and relative limits are given, trigger only '
-		   'if both fail.  By default, trigger when either fail.')
+            action = 'store_true', default = False,
+            help = 'If absolute and relative limits are given, trigger only '
+                   'if both fail.  By default, trigger when either fail.')
 
     ap.add_argument('--exclude', nargs = '+', default = [],
-	    help = 'Exclude specified poolgroups.')
+            help = 'Exclude specified poolgroups.')
     ap.add_argument('--poolgroup-prefix', default = 'PG ',
-	    help = 'Prefix for passive services related to poolgroups.')
+            help = 'Prefix for passive services related to poolgroups.')
     ap.add_argument('--site-prefix', default = '',
-	    help = 'Prefix for passive services related to sites.')
+            help = 'Prefix for passive services related to sites.')
 
     ap.add_argument('--available-service', default = '',
-	    metavar = 'SERVICE_SUFFIX',
-	    help = 'Target service suffix for reporting low available space')
+            metavar = 'SERVICE_SUFFIX',
+            help = 'Target service suffix for reporting low available space')
     ap.add_argument('--available-alimit',
-	    type = cwpair(size_float), default = (None, None),
-	    metavar = 'CW_SIZE',
-	    help = 'Min. advisable available space')
+            type = cwpair(size_float), default = (None, None),
+            metavar = 'CW_SIZE',
+            help = 'Min. advisable available space')
     ap.add_argument('--available-rlimit',
-	    type = cwpair(float), default = (None, None),
-	    metavar = 'CW_RATIO',
-	    help = 'Min. advisable available space relative to the total')
+            type = cwpair(float), default = (None, None),
+            metavar = 'CW_RATIO',
+            help = 'Min. advisable available space relative to the total')
 
     ap.add_argument('--free-service', default = '',
-	    metavar = 'SERVICE_SUFFIX',
-	    help = 'Target service suffix for reporting low free space')
+            metavar = 'SERVICE_SUFFIX',
+            help = 'Target service suffix for reporting low free space')
     ap.add_argument('--free-alimit',
-	    type = cwpair(size_float), default = (None, None),
-	    metavar = 'CW_SIZE',
-	    help = 'Min. advisable free space')
+            type = cwpair(size_float), default = (None, None),
+            metavar = 'CW_SIZE',
+            help = 'Min. advisable free space')
     ap.add_argument('--free-rlimit',
-	    type = cwpair(float), default = (None, None),
-	    metavar = 'CW_RATIO',
-	    help = 'Min. advisable free space relative to the total')
+            type = cwpair(float), default = (None, None),
+            metavar = 'CW_RATIO',
+            help = 'Min. advisable free space relative to the total')
 
     ap.add_argument('--nonprecious-service', default = '',
-	    metavar = 'SERVICE_SUFFIX',
-	    help = 'Target service suffix for reporting low non-precious '
-		   'space.')
+            metavar = 'SERVICE_SUFFIX',
+            help = 'Target service suffix for reporting low non-precious '
+                   'space.')
     ap.add_argument('--nonprecious-alimit',
-	    type = cwpair(size_float), default = (None, None),
-	    metavar = 'CW_SIZE',
-	    help = 'Min. available non-specious space.')
+            type = cwpair(size_float), default = (None, None),
+            metavar = 'CW_SIZE',
+            help = 'Min. available non-specious space.')
     ap.add_argument('--nonprecious-rlimit',
-	    type = cwpair(float), default = (None, None),
-	    metavar = 'CW_RATIO',
-	    help = 'Min. available non-specious space relative to total.')
+            type = cwpair(float), default = (None, None),
+            metavar = 'CW_RATIO',
+            help = 'Min. available non-specious space relative to total.')
 
     ap.add_argument('--heartbeat-service', default = '',
-	    metavar = 'SERVICE_SUFFIX',
-	    help = 'Target service suffix for reporting heartbeat.')
+            metavar = 'SERVICE_SUFFIX',
+            help = 'Target service suffix for reporting heartbeat.')
     ap.add_argument('--heartbeat-limit', dest = 'heartbeat_limit',
-	    type = cwpair(float), default = (None, None),
-	    metavar = 'CW_TIME',
-	    help = 'critical[,warning]: Max advisable heartbeat.')
+            type = cwpair(float), default = (None, None),
+            metavar = 'CW_TIME',
+            help = 'critical[,warning]: Max advisable heartbeat.')
     ap.add_argument('--list-pools', action = 'store_true', default = False,
-	    help = 'List pools with critical or high heartbeat.')
+            help = 'List pools with critical or high heartbeat.')
 
     ap.add_argument('--pools-tconf', metavar = 'PATH',
-	    help = 'Location of pools.tconf, used for site checks.')
+            help = 'Location of pools.tconf, used for site checks.')
     ap.add_argument('--check-sites', default = False, action = 'store_true',
-	    help = 'Check site availability.')
+            help = 'Check site availability.')
     ap.add_argument('--check-coverage', default = False, action = 'store_true',
-	    help = 'Check that the --pools-tconf argument lists all pools in '
-		   'monitored poolgroups.')
+            help = 'Check that the --pools-tconf argument lists all pools in '
+                   'monitored poolgroups.')
 
     ap.add_argument('--unmonitored-service', default = '',
-	    metavar = 'SERVICE_NAME',
-	    help = 'Target service for reporting unmonitored pools.')
+            metavar = 'SERVICE_NAME',
+            help = 'Target service for reporting unmonitored pools.')
 
     args = ap.parse_args()
     args.available_enabled = any(args.available_alimit) \
-			  or any(args.available_rlimit)
+                          or any(args.available_rlimit)
     args.free_enabled = any(args.free_alimit) or any(args.free_rlimit)
     args.nonprecious_enabled = any(args.nonprecious_alimit) \
-			    or any(args.nonprecious_rlimit)
+                            or any(args.nonprecious_rlimit)
     args.heartbeat_enabled = any(args.heartbeat_limit)
     if args.url is None:
-	args.url = 'http://%s:2288/info'%args.host
+        args.url = 'http://%s:2288/info'%args.host
 
     # Open stream for submitting passive result.
     nagcmd_path = os.getenv('NAGIOS_COMMANDFILE')
     if nagcmd_path:
-	nagcmd_fh = open(nagcmd_path, 'w')
+        nagcmd_fh = open(nagcmd_path, 'w')
     else:
-	nagcmd_fh = sys.stdout
+        nagcmd_fh = sys.stdout
 
     # Check pool groups.
     gs = load_poolgroups(args.url + '/poolgroups')
     if args.heartbeat_limit[0] or args.heartbeat_limit[1] \
-	    or args.check_coverage:
-	ps = dict((p.name, p) for p in load_pools(args.url + '/pools'))
+            or args.check_coverage:
+        ps = dict((p.name, p) for p in load_pools(args.url + '/pools'))
     service_count = 0
     gcount = 0
     for g in gs:
-	if not g.name in args.exclude:
-	    checker = PoolgroupChecker(args = args, nagcmd_fh = nagcmd_fh,
-				       service_suffix = args.heartbeat_service)
-	    if args.heartbeat_enabled:
-		checker.check_pools(ps, g.poolrefs, g.name)
-	    checker.check_poolgroup(g)
-	    service_count += checker.report_passive()
-	    gcount += 1
+        if not g.name in args.exclude:
+            checker = PoolgroupChecker(args = args, nagcmd_fh = nagcmd_fh,
+                                       service_suffix = args.heartbeat_service)
+            if args.heartbeat_enabled:
+                checker.check_pools(ps, g.poolrefs, g.name)
+            checker.check_poolgroup(g)
+            service_count += checker.report_passive()
+            gcount += 1
 
     # Check pools missing from pools.tconf if requested.
     missing = []
     partially_monitored = {}
     if args.pools_tconf:
-	visitor = tconf.TconfSectionedAccumulatingVisitor()
-	tconf.load_tconf(args.pools_tconf, visitor)
-	monitored_pools = set([])
+        visitor = tconf.TconfSectionedAccumulatingVisitor()
+        tconf.load_tconf(args.pools_tconf, visitor)
+        monitored_pools = set([])
 
-	for site in visitor.sections.itervalues():
-	    calls = site.calls.get('pool', []) + site.calls.get('poolh', [])
-	    pools = set(poolname for (hostname, poolname), _ in calls)
-	    monitored_pools.update(pools)
-	    if args.check_sites:
-		checker = PoolsetChecker(args = args, nagcmd_fh = nagcmd_fh)
-		checker.check_pools(ps, pools, site.section_name)
-		checker.report_passive()
+        for site in visitor.sections.itervalues():
+            calls = site.calls.get('pool', []) + site.calls.get('poolh', [])
+            pools = set(poolname for (hostname, poolname), _ in calls)
+            monitored_pools.update(pools)
+            if args.check_sites:
+                checker = PoolsetChecker(args = args, nagcmd_fh = nagcmd_fh)
+                checker.check_pools(ps, pools, site.section_name)
+                checker.report_passive()
 
-	if args.check_coverage:
-	    # Pools which are member of pool groups.
-	    for p in ps.itervalues():
-		for gn in p.poolgrouprefs:
-		    if not gn in args.exclude:
-			if not p.name in monitored_pools:
-			    missing.append((p.name, gn))
-			break
+        if args.check_coverage:
+            # Pools which are member of pool groups.
+            for p in ps.itervalues():
+                for gn in p.poolgrouprefs:
+                    if not gn in args.exclude:
+                        if not p.name in monitored_pools:
+                            missing.append((p.name, gn))
+                        break
 
-	    # Pools on domains where at least one pool is monitored.
-	    for dn, pns in load_domain_poolnames(args.url):
-		is_monitored = False
-		for pn in pns:
-		    if pn in monitored_pools:
-			is_monitored = True
-		if is_monitored:
-		    unmon_pns = [p for p in pns if not p in monitored_pools]
-		    if unmon_pns:
-			partially_monitored[dn] = unmon_pns
+            # Pools on domains where at least one pool is monitored.
+            for dn, pns in load_domain_poolnames(args.url):
+                is_monitored = False
+                for pn in pns:
+                    if pn in monitored_pools:
+                        is_monitored = True
+                if is_monitored:
+                    unmon_pns = [p for p in pns if not p in monitored_pools]
+                    if unmon_pns:
+                        partially_monitored[dn] = unmon_pns
 
     # Report status of the main service.
     npm = sum(len(pns) for pns in partially_monitored.itervalues())
     if args.unmonitored_service:
-	nc = NagiosCommand(nagcmd_fh)
-	if missing:
-	    msg = 'Found %d + %d unmonitored pools.' % (len(missing), npm)
-	    nc.process_service_check_result(args.host, args.unmonitored_service,
-					    1, msg)
-	else:
-	    nc.process_service_check_result(
-		args.host, args.unmonitored_service,
-		0, 'Relevant pools are monitored.')
+        nc = NagiosCommand(nagcmd_fh)
+        if missing:
+            msg = 'Found %d + %d unmonitored pools.' % (len(missing), npm)
+            nc.process_service_check_result(args.host, args.unmonitored_service,
+                                            1, msg)
+        else:
+            nc.process_service_check_result(
+                args.host, args.unmonitored_service,
+                0, 'Relevant pools are monitored.')
     if not missing:
-	status_code = 0
-	if not partially_monitored:
-	    print 'Reported %d poolgroups to %d services.'%(gcount, service_count)
-	else:
-	    print 'Reported %d poolgorups to %d services, ' \
-		  '%d domain is partially monitored.' \
-		  % (gcount, service_count, len(partially_monitored))
+        status_code = 0
+        if not partially_monitored:
+            print 'Reported %d poolgroups to %d services.'%(gcount, service_count)
+        else:
+            print 'Reported %d poolgorups to %d services, ' \
+                  '%d domain is partially monitored.' \
+                  % (gcount, service_count, len(partially_monitored))
     else:
-	if args.unmonitored_service:
-	    status_code = 0
-	else:
-	    status_code = 1
-	print 'Reported %d poolgroups to %d services, ' \
-	      'found %d + %d unmonitored pools.' \
-	    % (gcount, service_count, len(missing), npm)
+        if args.unmonitored_service:
+            status_code = 0
+        else:
+            status_code = 1
+        print 'Reported %d poolgroups to %d services, ' \
+              'found %d + %d unmonitored pools.' \
+            % (gcount, service_count, len(missing), npm)
     if missing:
-	print 'Pools missing from %s:'%args.pools_tconf
-	for pn, gn in missing:
-	    print '  - %s in group %s'%(pn, gn)
+        print 'Pools missing from %s:'%args.pools_tconf
+        for pn, gn in missing:
+            print '  - %s in group %s'%(pn, gn)
     if partially_monitored:
-	print 'Unmonitored pools in monitored domains:'
-	dns = partially_monitored.keys()
-	dns.sort()
-	for dn in dns:
-	    pns = list(partially_monitored[dn])
-	    pns.sort()
-	    print '  - In %s: %s'%(dn, ', '.join(pns))
+        print 'Unmonitored pools in monitored domains:'
+        dns = partially_monitored.keys()
+        dns.sort()
+        for dn in dns:
+            pns = list(partially_monitored[dn])
+            pns.sort()
+            print '  - In %s: %s'%(dn, ', '.join(pns))
 
     # Done reporting passive services.
     if nagcmd_path:
-	nagcmd_fh.close()
+        nagcmd_fh.close()
 
     sys.exit(status_code)
 except IOErrro, exn:
@@ -435,5 +435,5 @@ except Exception, xc:
     print 'Exception: %s'%xc
     _0, _1, tb = sys.exc_info()
     for ln in traceback.format_tb(tb):
-	print ln,
+        print ln,
     sys.exit(3)

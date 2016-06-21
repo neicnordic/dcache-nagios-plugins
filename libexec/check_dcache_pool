@@ -21,11 +21,11 @@ ge = lambda x, y: x >= y
 def check_limit(what, x, op, threshold, show = show_size):
     xW, xC = threshold
     if not op(x, xC):
-	report(2, '%s = %s (critical)' % (what, show(x)))
+        report(2, '%s = %s (critical)' % (what, show(x)))
     elif not op(x, xW):
-	report(1, '%s = %s (warning)' % (what, show(x)))
+        report(1, '%s = %s (warning)' % (what, show(x)))
     else:
-	report(0, '%s = %s' % (what, show(x)))
+        report(0, '%s = %s' % (what, show(x)))
 
 def check_heartbeat(pool, threshold):
     check_limit('heartbeat', pool.last_heartbeat, le, threshold, show = show_time)
@@ -48,30 +48,30 @@ def check_nonprecious_over_total(pool, threshold):
 
 def threshold_arg(conv, arg):
     try:
-	threshold = map(conv, arg.split(','))
+        threshold = map(conv, arg.split(','))
     except Exception, err:
-	raise GetoptError('Invalid argument: %s' % err)
+        raise GetoptError('Invalid argument: %s' % err)
     if len(threshold) == 1:
-	return threshold + threshold
+        return threshold + threshold
     elif len(threshold) == 2:
-	return threshold
+        return threshold
     else:
-	raise GetoptError('Thresholds options accepts pairs of one or two values.')
+        raise GetoptError('Thresholds options accepts pairs of one or two values.')
 
 def float_of_ratio(arg):
     if arg[-1] == '%':
-	return float(arg[:-1]) * 0.01
+        return float(arg[:-1]) * 0.01
     else:
-	return float(arg)
+        return float(arg)
 
 def print_time(hdr, amount):
     sys.stdout.write('%s: %s\n' % (hdr, show_time(amount)))
 
 def print_space(hdr, amount):
     if amount is None:
-	sys.stdout.write('%s: unknown\n')
+        sys.stdout.write('%s: unknown\n')
     else:
-	sys.stdout.write('%s: %s\n' % (hdr, show_size(amount)))
+        sys.stdout.write('%s: %s\n' % (hdr, show_size(amount)))
 
 info_url = None
 pool_name = None
@@ -82,30 +82,30 @@ precious_over_total_threshold = None
 nonprecious_over_total_threshold = None
 try:
     opts, args = gnu_getopt(sys.argv[1:], 'P:U:',
-	['heartbeat=',
-	 'precious=', 'precious-over-total=',
-	 'nonprecious=', 'nonprecious-over-total='])
+        ['heartbeat=',
+         'precious=', 'precious-over-total=',
+         'nonprecious=', 'nonprecious-over-total='])
     for opt, arg in opts:
-	if opt == '-P':
-	    pool_name = arg
-	elif opt == '-U':
-	    info_url = arg
-	elif opt == '--heartbeat':
-	    heartbeat_threshold = threshold_arg(float_of_timestr, arg)
-	elif opt == '--precious':
-	    precious_threshold = threshold_arg(int_of_sizestr, arg)
-	elif opt == '--nonprecious':
-	    nonprecious_threshold = threshold_arg(int_of_sizestr, arg)
-	elif opt == '--precious-over-total':
-	    precious_over_total_threshold = threshold_arg(float_of_ratio, arg)
-	elif opt == '--nonprecious-over-total':
-	    nonprecious_over_total_threshold = threshold_arg(float_of_ratio, arg)
-	else:
-	    assert False
+        if opt == '-P':
+            pool_name = arg
+        elif opt == '-U':
+            info_url = arg
+        elif opt == '--heartbeat':
+            heartbeat_threshold = threshold_arg(float_of_timestr, arg)
+        elif opt == '--precious':
+            precious_threshold = threshold_arg(int_of_sizestr, arg)
+        elif opt == '--nonprecious':
+            nonprecious_threshold = threshold_arg(int_of_sizestr, arg)
+        elif opt == '--precious-over-total':
+            precious_over_total_threshold = threshold_arg(float_of_ratio, arg)
+        elif opt == '--nonprecious-over-total':
+            nonprecious_over_total_threshold = threshold_arg(float_of_ratio, arg)
+        else:
+            assert False
     if info_url is None:
-	raise GetoptError('The -U option is required.')
+        raise GetoptError('The -U option is required.')
     if pool_name is None:
-	raise GetoptError('The -P option is required.')
+        raise GetoptError('The -P option is required.')
 except GetoptError, err:
     sys.stderr.write('%s\n' % err)
     sys.exit(64)
@@ -121,17 +121,17 @@ if pool is None:
     sys.exit(2)
 else:
     if pool.space_total:
-	report_msgs.append('total = %s' % show_size(pool.space_total))
+        report_msgs.append('total = %s' % show_size(pool.space_total))
     if heartbeat_threshold:
-	check_heartbeat(pool, heartbeat_threshold)
+        check_heartbeat(pool, heartbeat_threshold)
     if precious_threshold:
-	check_precious(pool, precious_threshold)
+        check_precious(pool, precious_threshold)
     if nonprecious_threshold:
-	check_nonprecious(pool, nonprecious_threshold)
+        check_nonprecious(pool, nonprecious_threshold)
     if precious_over_total_threshold:
-	check_precious_over_total(pool, precious_over_total_threshold)
+        check_precious_over_total(pool, precious_over_total_threshold)
     if nonprecious_over_total_threshold:
-	check_nonprecious_over_total(pool, nonprecious_over_total_threshold)
+        check_nonprecious_over_total(pool, nonprecious_over_total_threshold)
     sys.stdout.write(', '.join(report_msgs) + '\n')
     print_time('Heartbeat', pool.last_heartbeat)
     print_space('Total space', pool.space_total)
