@@ -12,6 +12,9 @@ error_re = re.compile('|'.join([
     r'\s*(?P<pool>[a-zA-Z0-9_-]+)\s+[a-zA-Z0-9_-]+\s+\[\d+\]\s+(' \
         + '|'.join(pool_error_messages) + ')',
 ]))
+warning_re = re.compile('|'.join([
+  r'\s*([a-zA-Z0-9_-]+\s+){2}\[\d+\]\s+(Operator intervention)\s*$',
+]))
 inform_re = re.compile('|'.join([
   r'\s*([a-zA-Z0-9_-]+\s+){2}\[\d+\]\s+tape_maintenance\s*$',
   r'\s*([a-zA-Z0-9_-]+\s+){2}\[\d+\]\s+(Initializing|Loading...)\s*$',
@@ -42,8 +45,10 @@ def check_url(url):
     fh = Popen(cmd, shell = False, stdout = PIPE).stdout
     msgs = []
     error_pools = []
+    warning_pools = []
     line_count = 0
     error_count = 0
+    warning_count = 0
     unknown_count = 0
     for ln in fh:
         line_count += 1
@@ -55,22 +60,45 @@ def check_url(url):
                 error_pools.append(mo.group('pool'))
             except IndexError:
                 pass
-        elif re.match(inform_re, ln):
+            continue
+        mo = re.match(warning_re, ln)
+        if mo:
+            warning_count += 1
+            try:
+                warning_pools.append(mo.group('pool'))
+            except IndexError:
+                pass
+            msgs.append('W ' + ln)
+            continue
+        if re.match(inform_re, ln):
             msgs.append('N ' + ln)
-        elif not re.match(ignore_re, ln):
+            continue
+        if not re.match(ignore_re, ln):
             unknown_count += 1
             msgs.append('U ' + ln)
+            continue
     fh.close()
+    issues = []
+    status_code = 0
     if error_count:
-        if error_pools:
-            print 'Found %d errors affecting %s.' \
-                % (error_count, ', '.join(error_pools))
+        status_code = max(status_code, 2)
+        if error_pools == []:
+            issues.append('Found %d errors.' % error_count)
         else:
-            print 'Found %d errors.' % error_count
-        status_code = 2
-    elif unknown_count:
-        print 'Some lines were not recognised, please update the probe.'
-        status_code = 3
+            issues.append('Found %d errors affecting %s.'
+                          % (error_count, ', '.join(error_pools)))
+    if warning_count:
+        status_code = max(status_code, 1)
+        if warning_pools == []:
+            issues.append('Found %d warnings.' % warning_count)
+        else:
+            issues.append('Found %d warnings affecting %s.'
+                          % (warning_count, ', '.join(warning_pools)))
+    if unknown_count:
+        issues.append('Some lines were not recognised, please update the probe.')
+        status_code = max(status_code, 3)
+    if status_code > 0:
+        print ' '.join(issues)
     elif line_count < 20:
         print 'The output is suspiciously short.'
         print '%s gives only %d lines of output.'%(' '.join(cmd), line_count)
