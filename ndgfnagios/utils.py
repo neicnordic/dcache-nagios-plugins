@@ -94,7 +94,10 @@ def size_float(s):
     return float(s)
 
 def show_percent(x):
-    return '%.1f %%' % (x * 100)
+    if x >= 0.1:
+        return '%.1f %%' % (x * 100)
+    else:
+        return '%.3g' % x
 
 def show_time(x):
     if x < 0:
