@@ -2,8 +2,9 @@
 import sys
 from getopt import gnu_getopt, GetoptError
 from ndgfnagios.dcacheinfo import load_pool
-from ndgfnagios.utils import int_of_sizestr, float_of_timestr, \
-                             show_size, show_time, show_percent
+from ndgfnagios.utils import \
+    int_of_sizestr, float_of_timestr, float_of_ratiostr, \
+    show_size, show_time, show_percent
 
 report_code = 0
 report_msgs = []
@@ -56,12 +57,6 @@ def threshold_arg(conv, arg):
     else:
         raise GetoptError('Thresholds options accepts pairs of one or two values.')
 
-def float_of_ratio(arg):
-    if arg[-1] == '%':
-        return float(arg[:-1]) * 0.01
-    else:
-        return float(arg)
-
 def print_time(hdr, amount):
     sys.stdout.write('%s: %s\n' % (hdr, show_time(amount)))
 
@@ -95,9 +90,11 @@ try:
         elif opt == '--nonprecious':
             nonprecious_threshold = threshold_arg(int_of_sizestr, arg)
         elif opt == '--precious-over-total':
-            precious_over_total_threshold = threshold_arg(float_of_ratio, arg)
+            precious_over_total_threshold = \
+                threshold_arg(float_of_ratiostr, arg)
         elif opt == '--nonprecious-over-total':
-            nonprecious_over_total_threshold = threshold_arg(float_of_ratio, arg)
+            nonprecious_over_total_threshold = \
+                threshold_arg(float_of_ratiostr, arg)
         else:
             assert False
     if info_url is None:

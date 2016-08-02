@@ -146,6 +146,12 @@ def float_of_timestr(s):
     else:
         return _time_of_unit[u] * float(v)
 
+def float_of_ratiostr(arg):
+    if arg[-1] == '%':
+        return float(arg[:-1]) * 0.01
+    else:
+        return float(arg)
+
 def counted_noun(count, sing_word, pl_word = None):
     if count == 1:
         return '%d %s'%(count, sing_word)
