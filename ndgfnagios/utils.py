@@ -93,6 +93,9 @@ def size_float(s):
         return float(mo.group(1)) * size_unit(mo.group(2))
     return float(s)
 
+def show_percent(x):
+    return '%.1f %%' % (x * 100)
+
 def show_time(x):
     if x < 0:
         return '-' + show_time(-x)

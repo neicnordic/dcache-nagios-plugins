@@ -2,7 +2,8 @@
 import sys
 from getopt import gnu_getopt, GetoptError
 from ndgfnagios.dcacheinfo import load_pool
-from ndgfnagios.utils import int_of_sizestr, float_of_timestr, show_size, show_time
+from ndgfnagios.utils import int_of_sizestr, float_of_timestr, \
+                             show_size, show_time, show_percent
 
 report_code = 0
 report_msgs = []
@@ -11,9 +12,6 @@ def report(code, msg):
     global report_code
     report_code = max(code, report_code)
     report_msgs.append(msg)
-
-def show_percent(x):
-    return '%.1f %%' % (x * 100)
 
 le = lambda x, y: x <= y
 ge = lambda x, y: x >= y
