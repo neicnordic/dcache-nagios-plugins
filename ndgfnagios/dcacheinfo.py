@@ -46,30 +46,30 @@ class PoolgroupInfo(object):
         self.name = name
         self.linkrefs = linkrefs
 
-        self.total_space = None
-        self.free_space = None
-        self.removable_space = None
-        self.precious_space = None
-        self.used_space = None
+        self.space_total = None
+        self.space_free = None
+        self.space_removable = None
+        self.space_precious = None
+        self.space_used = None
 
         self.poolrefs = poolrefs
 
     @property
     def available_space(self):
-        return self.removable_space + self.free_space
+        return self.space_removable + self.space_free
 
     @property
     def nonprecious_space(self):
-        return self.total_space - self.precious_space
+        return self.space_total - self.space_precious
 
     def __repr__(self):
         return 'PoolgroupInfo(%r, %d, %d, %d, %d, %d, {%s}, {%s})' \
             %(self.name,
-              self.total_space,
-              self.free_space,
-              self.removable_space,
-              self.precious_space,
-              self.used_space,
+              self.space_total,
+              self.space_free,
+              self.space_removable,
+              self.space_precious,
+              self.space_used,
               ', '.join(self.linkrefs),
               ', '.join(self.poolrefs))
 
@@ -155,10 +155,20 @@ def load_poolgroups(url):
                     e_g.findall(DCACHE.pools + '/' + DCACHE.poolref)]
         space = dict(map(_scan_metric, e_g.findall(DCACHE.space+'/'+DCACHE.metric)))
         pg = PoolgroupInfo(name, linkrefs = linkrefs, poolrefs = poolrefs)
-        pg.total_space = space['total']
-        pg.free_space = space['free']
-        pg.removable_space = space['removable']
-        pg.precious_space = space['precious']
-        pg.used_space = space['used']
+        pg.space_total = space['total']
+        pg.space_free = space['free']
+        pg.space_removable = space['removable']
+        pg.space_precious = space['precious']
+        pg.space_used = space['used']
         yield pg
     fh.close()
+
+def load_poolgroup(url):
+    poolgroups = list(load_poolgroups(url))
+    if len(poolgroups) == 1:
+        return poolgroups[0]
+    elif len(poolgroups) == 0:
+        return None
+    else:
+        raise RuntimeError('Request for a single pool group gave %d entries.'
+                           % len(poolgroups))

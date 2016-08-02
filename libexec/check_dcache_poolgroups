@@ -166,40 +166,40 @@ class PoolgroupChecker(PoolsetChecker):
     def check_poolgroup(self, g):
         if self._args.available_enabled:
             r = self.status_for(g.name, self._args.available_service)
-            if g.total_space:
+            if g.space_total:
                 r.update(0, '%s (%.2g) available.' %
                     (show_size(g.available_space),
-                     g.available_space / float(g.total_space)))
+                     g.available_space / float(g.space_total)))
         if self._args.free_enabled:
             r = self.status_for(g.name, self._args.free_service)
-            if g.total_space:
+            if g.space_total:
                 r.update(0, '%s (%.2g) free.' %
-                    (show_size(g.free_space),
-                     g.free_space / float(g.total_space)))
+                    (show_size(g.space_free),
+                     g.space_free / float(g.space_total)))
         if self._args.nonprecious_enabled:
             r = self.status_for(g.name, self._args.nonprecious_service)
-            if g.total_space and g.precious_space:
+            if g.space_total and g.space_precious:
                 r.update(0, '%s (%.2g) nonprecious.' %
                     (show_size(g.nonprecious_space),
-                     g.nonprecious_space / float(g.total_space)))
+                     g.nonprecious_space / float(g.space_total)))
 
         # Check utilization.
-        def ckspace(r, rlimit, alimit, free_space, retcode, msg):
+        def ckspace(r, rlimit, alimit, space_free, retcode, msg):
             c0 = c1 = self._args.conjunct
             if not rlimit is None:
-                c0 = free_space < rlimit*g.total_space
+                c0 = space_free < rlimit*g.space_total
             if not alimit is None:
-                c1 = free_space < alimit
+                c1 = space_free < alimit
             if c0 and c1 or (not self._args.conjunct and (c0 or c1)):
                 r.update(retcode, msg)
                 return True
             return False
-        def ckspace2(r, rlimits, alimits, free_space, what):
+        def ckspace2(r, rlimits, alimits, space_free, what):
             msg0 = what.capitalize() + ' space is critically low.'
             msg1 = what.capitalize() + ' space is low.'
-            ckspace(r, rlimits[0], alimits[0], free_space, 2, msg0) or \
-            ckspace(r, rlimits[1], alimits[1], free_space, 1, msg1)
-        if g.total_space > 0:
+            ckspace(r, rlimits[0], alimits[0], space_free, 2, msg0) or \
+            ckspace(r, rlimits[1], alimits[1], space_free, 1, msg1)
+        if g.space_total > 0:
             if self._args.available_enabled:
                 r = self.status_for(g.name, self._args.available_service)
                 ckspace2(r, self._args.available_rlimit, self._args.available_alimit,
@@ -207,7 +207,7 @@ class PoolgroupChecker(PoolsetChecker):
             if self._args.free_enabled:
                 r = self.status_for(g.name, self._args.free_service)
                 ckspace2(r, self._args.free_rlimit, self._args.free_alimit,
-                         g.free_space, 'free')
+                         g.space_free, 'free')
             if self._args.nonprecious_enabled:
                 r = self.status_for(g.name, self._args.nonprecious_service)
                 ckspace2(r, self._args.nonprecious_rlimit, self._args.nonprecious_alimit,
