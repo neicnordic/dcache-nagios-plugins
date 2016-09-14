@@ -12,7 +12,8 @@ report_msgs = []
 def report(code, msg):
     global report_code
     report_code = max(code, report_code)
-    report_msgs.append(msg)
+    if not msg in report_msgs:
+        report_msgs.append(msg)
 
 le = lambda x, y: x <= y
 ge = lambda x, y: x >= y
@@ -26,24 +27,45 @@ def check_limit(what, x, op, threshold, show = show_size):
     else:
         report(0, '%s = %s' % (what, show(x)))
 
+def missing_metric(what):
+    report(2, 'Missing metric %s.' % what)
+
 def check_heartbeat(pool, threshold):
     check_limit('heartbeat', pool.last_heartbeat, le, threshold, show = show_time)
 
 def check_precious(pool, threshold):
-    precious = pool.space_precious
-    check_limit('precious', precious, le, threshold)
+    if pool.space_precious is None:
+        missing_metric('precious')
+    else:
+        precious = pool.space_precious
+        check_limit('precious', precious, le, threshold)
 
 def check_nonprecious(pool, threshold):
-    nonprecious = pool.space_total - pool.space_precious
-    check_limit('nonprecious', nonprecious, ge, threshold)
+    if pool.space_total is None:
+        missing_metric('total')
+    elif pool.space_precious is None:
+        missing_metric('precious')
+    else:
+        nonprecious = pool.space_total - pool.space_precious
+        check_limit('nonprecious', nonprecious, ge, threshold)
 
 def check_precious_over_total(pool, threshold):
-    precious = float(pool.space_precious) / pool.space_total
-    check_limit('precious/total', precious, le, threshold, show = show_percent)
+    if pool.space_precious is None:
+        missing_metric('precious')
+    elif pool.space_total is None:
+        missing_metric('total')
+    else:
+        precious = float(pool.space_precious) / pool.space_total
+        check_limit('precious/total', precious, le, threshold, show = show_percent)
 
 def check_nonprecious_over_total(pool, threshold):
-    nonprecious = float(pool.space_total - pool.space_precious)/pool.space_total
-    check_limit('nonprecious/total', nonprecious, ge, threshold, show = show_percent)
+    if pool.space_total is None:
+        missing_metric('total')
+    elif pool.space_precious is None:
+        missing_metric('precious')
+    else:
+        nonprecious = float(pool.space_total - pool.space_precious)/pool.space_total
+        check_limit('nonprecious/total', nonprecious, ge, threshold, show = show_percent)
 
 def threshold_arg(conv, arg):
     try:
