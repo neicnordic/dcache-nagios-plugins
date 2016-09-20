@@ -306,6 +306,10 @@ try:
     ap.add_argument('--check-coverage', default = False, action = 'store_true',
             help = 'Check that the --pools-tconf argument lists all pools in '
                    'monitored poolgroups.')
+    ap.add_argument('--check-coverage-by-domain',
+            default = False, action = 'store_true',
+            help = 'Check that the --pools-tconf argument lists all pools in '
+                   'domains which has at least one monitored pool.')
 
     ap.add_argument('--unmonitored-service', default = '',
             metavar = 'SERVICE_NAME',
@@ -371,6 +375,7 @@ try:
                             missing.append((p.name, gn))
                         break
 
+        if args.check_coverage_by_domain:
             # Pools on domains where at least one pool is monitored.
             for dn, pns in load_domain_poolnames(args.url):
                 is_monitored = False
