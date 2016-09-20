@@ -93,7 +93,7 @@ try:
     if pgroup_name is None:
         raise GetoptError('The -G option is required.')
 except GetoptError, exn:
-    sys.stderr.write('%s\n' % err)
+    sys.stderr.write('%s\n' % exn)
     sys.exit(64)
 
 try:
@@ -106,16 +106,20 @@ if pgroup is None:
     sys.stdout.write('Poolgroup %s not found.' % pgroup_name)
     sys.exit(2)
 else:
-    if pgroup.space_total:
+    if pgroup.space_total is None:
+        report(2, 'Missing total space metric (at least).')
+    elif pgroup.space_total > 0:
         report_msgs.append('total = %s' % show_size(pgroup.space_total))
-    if precious_threshold:
-        check_precious(pgroup, precious_threshold)
-    if nonprecious_threshold:
-        check_nonprecious(pgrop, nonprecious_threshold)
-    if precious_over_total_threshold:
-        check_precious_over_total(pgroup, precious_over_total_threshold)
-    if nonprecious_over_total_threshold:
-        check_nonprecious_over_total(pgroup, nonprecious_over_total_threshold)
+        if precious_threshold:
+            check_precious(pgroup, precious_threshold)
+        if nonprecious_threshold:
+            check_nonprecious(pgroup, nonprecious_threshold)
+        if precious_over_total_threshold:
+            check_precious_over_total(pgroup, precious_over_total_threshold)
+        if nonprecious_over_total_threshold:
+            check_nonprecious_over_total(pgroup, nonprecious_over_total_threshold)
+    else:
+        report(2, 'No space in poolgroup.')
     sys.stdout.write(', '.join(report_msgs) + '\n')
     print_space('Total space', pgroup.space_total)
     print_space('Precious space', pgroup.space_precious)
