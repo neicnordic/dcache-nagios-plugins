@@ -428,7 +428,7 @@ try:
         nagcmd_fh.close()
 
     sys.exit(status_code)
-except IOErrro, exn:
+except IOError, exn:
     print 'Failed to query dCache: %s' % exn
     sys.exit(3)
 except Exception, xc:
