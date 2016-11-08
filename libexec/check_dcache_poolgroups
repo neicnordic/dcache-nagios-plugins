@@ -235,6 +235,10 @@ try:
     ap = argparse.ArgumentParser()
     ap.add_argument('-H', dest = 'host', required = True,
             help = 'Target host for passive results.')
+    ap.add_argument('--certkey', dest = 'certkey', default = None,
+            help = 'Client certificate key for authenticating to dCache.')
+    ap.add_argument('--cert', dest = 'cert', default = None,
+            help = 'Client certificate for authenticating to dCache.')
     ap.add_argument('-U', dest = 'url',
             help = 'The info URL under which to make queries.')
     ap.add_argument('-a', dest = 'all', action = 'store_true', default = False,
@@ -333,10 +337,13 @@ try:
         nagcmd_fh = sys.stdout
 
     # Check pool groups.
-    gs = load_poolgroups(args.url + '/poolgroups')
+    gs = load_poolgroups(args.url + '/poolgroups',
+                         certkey = args.certkey, cert = args.cert)
     if args.heartbeat_limit[0] or args.heartbeat_limit[1] \
             or args.check_coverage:
-        ps = dict((p.name, p) for p in load_pools(args.url + '/pools'))
+        ps = dict((p.name, p) for p in
+                  load_pools(args.url + '/pools',
+                             certkey = args.certkey, cert = args.cert))
     service_count = 0
     gcount = 0
     for g in gs:
@@ -377,7 +384,8 @@ try:
 
         if args.check_coverage_by_domain:
             # Pools on domains where at least one pool is monitored.
-            for dn, pns in load_domain_poolnames(args.url):
+            for dn, pns in load_domain_poolnames(args.url,
+                                    certkey = args.certkey, cert = args.cert):
                 is_monitored = False
                 for pn in pns:
                     if pn in monitored_pools:

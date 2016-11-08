@@ -61,6 +61,8 @@ def print_space(hdr, amount):
         sys.stdout.write('%s: %s\n' % (hdr, show_size(amount)))
 
 info_url = None
+certkey = None
+cert = None
 pgroup_name = None
 precious_threshold = None
 nonprecious_threshold = None
@@ -70,12 +72,17 @@ nonprecious_over_total_threshold = None
 try:
     opts, args = gnu_getopt(sys.argv[1:], 'G:U:',
         ['precious=', 'precious-over-total=',
-         'nonprecious=', 'nonprecious-over-total='])
+         'nonprecious=', 'nonprecious-over-total=',
+         'certkey=', 'cert='])
     for opt, arg in opts:
         if opt == '-G':
             pgroup_name = arg
         elif opt == '-U':
             info_url = arg
+        elif opt == '--certkey':
+            certkey = arg
+        elif opt == '--cert':
+            cert = arg
         elif opt == '--precious':
             precious_threshold = threshold_arg(int_of_sizestr, arg)
         elif opt == '--nonprecious':
@@ -97,7 +104,8 @@ except GetoptError, exn:
     sys.exit(64)
 
 try:
-    pgroup = load_poolgroup(info_url + '/poolgroups/' + pgroup_name)
+    pgroup = load_poolgroup(info_url + '/poolgroups/' + pgroup_name,
+                            certkey = certkey, cert = cert)
 except IOError, exn:
     sys.stdout.write('Failed to fetch poolgroup info: %s' % exn)
     sys.exit(3)

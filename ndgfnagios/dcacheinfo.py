@@ -1,4 +1,4 @@
-import urllib
+from ndgfnagios.urlopen import urlopen
 try: from xml.etree import cElementTree as etree
 except ImportError:
     from xml.etree import ElementTree as etree
@@ -86,8 +86,8 @@ def _scan_metric(metric_elt):
         raise AssertionError('Unsupported type %s.'%t)
     return (metric_elt.get('name'), x)
 
-def load_pools(url):
-    fh = urllib.urlopen(url)
+def load_pools(url, certkey = None, cert = None):
+    fh = urlopen(url, certkey = certkey, cert = cert)
     doc = etree.parse(fh)
     for e_p in doc.findall('.//' + DCACHE.pools + '/' + DCACHE.pool):
         name = e_p.get('name')
@@ -112,8 +112,8 @@ def load_pools(url):
         yield p
     fh.close()
 
-def load_pool(url):
-    pools = list(load_pools(url))
+def load_pool(url, certkey = None, cert = None):
+    pools = list(load_pools(url, certkey = certkey, cert = cert))
     if len(pools) == 1:
         return pools[0]
     elif len(pools) == 0:
@@ -121,8 +121,8 @@ def load_pool(url):
     else:
         raise RuntimeError('Request for single pool gave %d results.' % len(pools))
 
-def load_domain_poolnames(info_url):
-    fh = urllib.urlopen(info_url + '/domains')
+def load_domain_poolnames(info_url, certkey = None, cert = None):
+    fh = urlopen(info_url + '/domains', certkey = certkey, cert = cert)
     doc = etree.parse(fh)
     for domain_ele in doc.findall(DCACHE.domains + '/' + DCACHE.domain):
         dn = domain_ele.get('name')
@@ -137,15 +137,16 @@ def load_domain_poolnames(info_url):
             yield dn, pns
     fh.close()
 
-def load_domain_of_pool_dict(info_url):
-    return dict((pn, dn) for dn, pns in load_domain_poolnames(info_url)
-                         for pn in pns)
+def load_domain_of_pool_dict(info_url, certkey = None, cert = None):
+    data = load_domain_poolnames(info_url, certkey = certkey, cert = cert)
+    return dict((pn, dn) for dn, pns in data for pn in pns)
 
-def load_pools_of_domain_dict(info_url):
-    return dict((dn, pns) for dn, pns in load_domain_poolnames(info_url))
+def load_pools_of_domain_dict(info_url, certkey = None, cert = None):
+    data = load_domain_poolnames(info_url, certkey = certkey, cert = cert)
+    return dict((dn, pns) for dn, pns in data)
 
-def load_poolgroups(url):
-    fh = urllib.urlopen(url)
+def load_poolgroups(url, certkey = None, cert = None):
+    fh = urlopen(url, certkey = certkey, cert = cert)
     doc = etree.parse(fh)
     for e_g in doc.findall('.//' + DCACHE.poolgroup):
         name = e_g.get('name')
@@ -163,8 +164,8 @@ def load_poolgroups(url):
         yield pg
     fh.close()
 
-def load_poolgroup(url):
-    poolgroups = list(load_poolgroups(url))
+def load_poolgroup(url, certkey = None, cert = None):
+    poolgroups = list(load_poolgroups(url, certkey = certkey, cert = cert))
     if len(poolgroups) == 1:
         return poolgroups[0]
     elif len(poolgroups) == 0:

@@ -89,6 +89,8 @@ def print_space(hdr, amount):
         sys.stdout.write('%s: %s\n' % (hdr, show_size(amount)))
 
 info_url = None
+certkey = None
+cert = None
 pool_name = None
 heartbeat_threshold = None
 precious_threshold = None
@@ -99,12 +101,17 @@ try:
     opts, args = gnu_getopt(sys.argv[1:], 'P:U:',
         ['heartbeat=',
          'precious=', 'precious-over-total=',
-         'nonprecious=', 'nonprecious-over-total='])
+         'nonprecious=', 'nonprecious-over-total=',
+         'certkey=', 'cert='])
     for opt, arg in opts:
         if opt == '-P':
             pool_name = arg
         elif opt == '-U':
             info_url = arg
+        elif opt == '--certkey':
+            certkey = arg
+        elif opt == '--cert':
+            cert = arg
         elif opt == '--heartbeat':
             heartbeat_threshold = threshold_arg(float_of_timestr, arg)
         elif opt == '--precious':
@@ -128,7 +135,8 @@ except GetoptError, err:
     sys.exit(64)
 
 try:
-    pool = load_pool(info_url + '/pools/' + pool_name)
+    pool = load_pool(info_url + '/pools/' + pool_name,
+                     certkey = certkey, cert = cert)
 except IOError, exn:
     sys.stderr.write('Failed to fetch pool info: %s' % exn)
     sys.exit(3)
