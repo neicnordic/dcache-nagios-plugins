@@ -110,19 +110,28 @@ def check_url(url):
     map(sys.stdout.write, msgs)
     sys.exit(status_code)
 
+host = None
+port = 2288
 base_url = None
 page_path = None
 try:
-    opts, args = gnu_getopt(sys.argv[1:], 'H:g:')
+    opts, args = gnu_getopt(sys.argv[1:], 'U:H:p:g:')
     for opt, arg in opts:
-        if opt == '-H':
-            base_url = 'http://%s:2288'%arg
+        if opt == '-U':
+            base_url = arg
+        elif opt == '-H':
+            host = arg
+        elif opt == '-p':
+            port = arg
         elif opt == '-g':
             page_path = '/pools/list/PoolManager/%s/spaces'%arg
         else:
             assert False
     if base_url is None:
-        raise GetoptError('The -H option is mandatory.')
+        if host is None:
+            raise GetoptError('The -H or -U option is mandatory.')
+        else:
+            base_url = 'http://%s:%d' % (host, port)
     if page_path is None:
         raise GetoptError('The -g option is mandatory.')
 except GetoptError, xc:
