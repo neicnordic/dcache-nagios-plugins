@@ -121,11 +121,12 @@ class RestoreState(object):
         if self._to_update != []:
             cur = self._dbconn.cursor()
             for pnfs_id in self._to_update:
-                self._dbconn.execute(db_update, self._to_update)
+                cur.execute(db_update, [pnfs_id])
             cur.close()
         if self._to_insert != []:
             cur = self._dbconn.cursor()
-            self._dbconn.execute(db_insert, self._to_insert)
+            for pnfs_id in self._to_insert:
+                cur.execute(db_insert, [pnfs_id])
             cur.close()
         self._dbconn.commit()
 
