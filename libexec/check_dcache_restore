@@ -97,7 +97,7 @@ class RestoreState(object):
         self._to_update = []
         self._to_insert = []
         self.data = {}
-        self.now = datetime.now()
+        self.now = datetime.utcnow()
         if not db_existed:
             self._dbconn.execute(db_schema)
         else:
@@ -184,7 +184,7 @@ def check(url, certfile = None, keyfile = None,
     status_msgs.append('longest ongoing restore %s' % str_of_timestuff(longest))
     print(', '.join(status_msgs).capitalize())
     print('Longest recent restore: %s' % str_of_timestuff(longest_recent))
-    print('Recent restores and times when seen by the Nagios probe:')
+    print('Recent restores and UTC times when seen by the probe:')
     for pnfs_id, (first_seen, last_seen) in restore_state.data.items():
         duration = last_seen - first_seen
         print('%s seen for %s (%s to %s)' %
