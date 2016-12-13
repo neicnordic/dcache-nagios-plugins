@@ -84,7 +84,7 @@ def print_time(hdr, amount):
 
 def print_space(hdr, amount):
     if amount is None:
-        sys.stdout.write('%s: unknown\n')
+        sys.stdout.write('%s: unknown\n' % hdr)
     else:
         sys.stdout.write('%s: %s\n' % (hdr, show_size(amount)))
 
