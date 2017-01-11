@@ -102,6 +102,7 @@ class RestoreState(object):
             self._dbconn.execute(db_schema)
         else:
             cur = self._dbconn.cursor()
+            cur.execute(db_prune)
             cur.execute(db_select)
             for pnfs_id, first_seen_str, last_seen_str in cur:
                 first_seen = datetime.strptime(first_seen_str, '%Y-%m-%d %H:%M:%S')
@@ -129,6 +130,9 @@ class RestoreState(object):
                 cur.execute(db_insert, [pnfs_id])
             cur.close()
         self._dbconn.commit()
+
+    def close(self):
+        self._dbconn.close()
 
 def str_of_timestuff(timestuff):
     return str(timestuff).split('.', 1)[0]
@@ -194,6 +198,7 @@ def check(url, certfile = None, keyfile = None,
                str_of_timestuff(last_seen)))
     if critical_count > 0: sys.exit(2)
     if warning_count > 0: sys.exit(1)
+    restore_state.close()
     sys.exit(0)
 
 url = None
