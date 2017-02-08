@@ -17,6 +17,8 @@ from html.parser import HTMLParser
 class ParseError(Exception):
     pass
 
+verbose = False
+
 INIT, TABLE, THEAD, THEAD_TR, THEAD_TD, TBODY, TBODY_TR, TBODY_TD = range(8)
 
 start_transitions = {
@@ -189,13 +191,14 @@ def check(url, certfile = None, keyfile = None,
     print(', '.join(status_msgs).capitalize())
     print('Longest recent restore: %s' % str_of_timestuff(longest_recent))
     print('Recent restores and UTC times when seen by the probe:')
-    for pnfs_id, (first_seen, last_seen) in restore_state.data.items():
-        duration = last_seen - first_seen
-        print('%s seen for %s (%s to %s)' %
-              (pnfs_id,
-               str_of_timestuff(duration),
-               str_of_timestuff(first_seen),
-               str_of_timestuff(last_seen)))
+    if verbose:
+        for pnfs_id, (first_seen, last_seen) in restore_state.data.items():
+            duration = last_seen - first_seen
+            print('%s seen for %s (%s to %s)' %
+                  (pnfs_id,
+                   str_of_timestuff(duration),
+                   str_of_timestuff(first_seen),
+                   str_of_timestuff(last_seen)))
     if critical_count > 0: sys.exit(2)
     if warning_count > 0: sys.exit(1)
     restore_state.close()
