@@ -190,8 +190,8 @@ def check(url, certfile = None, keyfile = None,
     status_msgs.append('longest ongoing restore %s' % str_of_timestuff(longest))
     print(', '.join(status_msgs).capitalize())
     print('Longest recent restore: %s' % str_of_timestuff(longest_recent))
-    print('Recent restores and UTC times when seen by the probe:')
     if verbose:
+        print('Recent restores and UTC times when seen by the probe:')
         for pnfs_id, (first_seen, last_seen) in restore_state.data.items():
             duration = last_seen - first_seen
             print('%s seen for %s (%s to %s)' %
