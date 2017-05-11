@@ -33,6 +33,9 @@ start_transitions = {
 end_transitions = \
     dict((source, (tag, target))
          for (target, tag), source in start_transitions.items())
+tag_of_state = \
+    dict((state, tag)
+         for (_, tag), state in start_transitions.items())
 
 class RestoreParser(HTMLParser):
     def __init__(self):
@@ -53,7 +56,8 @@ class RestoreParser(HTMLParser):
             elif self._state == THEAD_TD or self._state == TBODY_TD:
                 self._data = ""
         elif self._state != INIT:
-            raise ParseError('Unexpected tag %s in <table/>.' % tag)
+            raise ParseError('Unexpected tag %s in %s.'
+                             % (tag, tag_of_state[self._state]))
 
     def handle_endtag(self, tag):
         if self._state != INIT:
@@ -151,11 +155,23 @@ def check(url, certfile = None, keyfile = None,
     decode = codecs.getreader('utf-8')
     fh = decode(urllib.request.urlopen(url, context = context))
     parser = RestoreParser()
-    while True:
-        buf = fh.read(2048)
-        if buf == '':
-            break
-        parser.feed(buf)
+    try:
+        while True:
+            buf = fh.read(2048)
+            if buf == '':
+                break
+            parser.feed(buf)
+    except ParseError as err:
+        fh = decode(urllib.request.urlopen(url, context = context))
+        print('Failed to parse page: %s' % err)
+        ofn = 'check_dcache_restore-crash-%s.html' % \
+            datetime.strftime(datetime.now(), '%Y-%m-%dT%H%M')
+        ofp = os.path.join(top_statedir, ofn)
+        ofh = open(ofp, 'w')
+        print('Re-fetching and saving content to %s.' % ofp)
+        for ln in fh:
+            ofh.write(ln)
+        sys.exit(3)
 
     # Update the database
     restore_state = RestoreState()
