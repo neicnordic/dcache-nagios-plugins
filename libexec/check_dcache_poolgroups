@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#! /usr/bin/env python3
 #
 # Nagios probe to check dCache pool groups and submit results to passive
 # services.  Checks performed include heartbeats of member pools, free space,
@@ -58,7 +58,7 @@ class PassiveChecker(NagiosCommand):
 
     def report_passive(self):
         service_count = 0
-        for svc_name, r in self._results.iteritems():
+        for svc_name, r in self._results.items():
             self.process_service_check_result(self._host, svc_name, r.retcode,
                                               r.message)
             service_count += 1
@@ -364,7 +364,7 @@ try:
         tconf.load_tconf(args.pools_tconf, visitor)
         monitored_pools = set([])
 
-        for site in visitor.sections.itervalues():
+        for site in visitor.sections.values():
             calls = site.calls.get('pool', []) + site.calls.get('poolh', [])
             pools = set(poolname for (hostname, poolname), _ in calls)
             monitored_pools.update(pools)
@@ -375,7 +375,7 @@ try:
 
         if args.check_coverage:
             # Pools which are member of pool groups.
-            for p in ps.itervalues():
+            for p in ps.values():
                 for gn in p.poolgrouprefs:
                     if not gn in args.exclude:
                         if not p.name in monitored_pools:
@@ -396,7 +396,7 @@ try:
                         partially_monitored[dn] = unmon_pns
 
     # Report status of the main service.
-    npm = sum(len(pns) for pns in partially_monitored.itervalues())
+    npm = sum(len(pns) for pns in partially_monitored.values())
     if args.unmonitored_service:
         nc = NagiosCommand(nagcmd_fh)
         if missing:
@@ -410,43 +410,44 @@ try:
     if not missing:
         status_code = 0
         if not partially_monitored:
-            print 'Reported %d poolgroups to %d services.'%(gcount, service_count)
+            print('Reported %d poolgroups to %d services.' \
+                  % (gcount, service_count))
         else:
-            print 'Reported %d poolgorups to %d services, ' \
+            print('Reported %d poolgorups to %d services, ' \
                   '%d domain is partially monitored.' \
-                  % (gcount, service_count, len(partially_monitored))
+                  % (gcount, service_count, len(partially_monitored)))
     else:
         if args.unmonitored_service:
             status_code = 0
         else:
             status_code = 1
-        print 'Reported %d poolgroups to %d services, ' \
+        print('Reported %d poolgroups to %d services, ' \
               'found %d + %d unmonitored pools.' \
-            % (gcount, service_count, len(missing), npm)
+              % (gcount, service_count, len(missing), npm))
     if missing:
-        print 'Pools missing from %s:'%args.pools_tconf
+        print('Pools missing from %s:' % args.pools_tconf)
         for pn, gn in missing:
-            print '  - %s in group %s'%(pn, gn)
+            print('  - %s in group %s' % (pn, gn))
     if partially_monitored:
-        print 'Unmonitored pools in monitored domains:'
+        print('Unmonitored pools in monitored domains:')
         dns = partially_monitored.keys()
         dns.sort()
         for dn in dns:
             pns = list(partially_monitored[dn])
             pns.sort()
-            print '  - In %s: %s'%(dn, ', '.join(pns))
+            print('  - In %s: %s'%(dn, ', '.join(pns)))
 
     # Done reporting passive services.
     if nagcmd_path:
         nagcmd_fh.close()
 
     sys.exit(status_code)
-except IOError, exn:
-    print 'Failed to query dCache: %s' % exn
+except IOError as exn:
+    print('Failed to query dCache: %s' % exn)
     sys.exit(3)
-except Exception, xc:
-    print 'Exception: %s'%xc
+except Exception as xc:
+    print('Exception: %s' % xc)
     _0, _1, tb = sys.exc_info()
     for ln in traceback.format_tb(tb):
-        print ln,
+        print(ln,)
     sys.exit(3)

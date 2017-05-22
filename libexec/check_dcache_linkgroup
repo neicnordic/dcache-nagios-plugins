@@ -1,4 +1,4 @@
-#! /usr/bin/python
+#! /usr/bin/python3
 import sys
 from getopt import gnu_getopt, GetoptError
 from xml.etree import cElementTree as etree
@@ -50,7 +50,7 @@ try:
         info_url = 'http://%s:%d/info' % (info_host, info_port)
     if linkgroup is None:
         raise GetoptError('The linkgroup must be specified.')
-except GetoptError, err:
+except GetoptError as err:
     sys.stderr.write('%s\n'%err)
     sys.exit(3)
 

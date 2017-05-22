@@ -1,4 +1,4 @@
-#! /usr/bin/python
+#! /usr/bin/python3
 import sys
 from getopt import gnu_getopt, GetoptError
 from ndgfnagios.dcacheinfo import load_pool
@@ -69,8 +69,8 @@ def check_nonprecious_over_total(pool, threshold):
 
 def threshold_arg(conv, arg):
     try:
-        threshold = map(conv, arg.split(','))
-    except Exception, err:
+        threshold = list(map(conv, arg.split(',')))
+    except Exception as err:
         raise GetoptError('Invalid argument: %s' % err)
     if len(threshold) == 1:
         return threshold + threshold
@@ -130,14 +130,14 @@ try:
         raise GetoptError('The -U option is required.')
     if pool_name is None:
         raise GetoptError('The -P option is required.')
-except GetoptError, err:
+except GetoptError as err:
     sys.stderr.write('%s\n' % err)
     sys.exit(64)
 
 try:
     pool = load_pool(info_url + '/pools/' + pool_name,
                      certkey = certkey, cert = cert)
-except IOError, exn:
+except IOError as exn:
     sys.stderr.write('Failed to fetch pool info: %s' % exn)
     sys.exit(3)
 
