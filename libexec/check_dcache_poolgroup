@@ -44,7 +44,7 @@ def check_nonprecious_over_total(pgroup, threshold):
 
 def threshold_arg(conv, arg):
     try:
-        threshold = map(conv, arg.split(','))
+        threshold = list(map(conv, arg.split(',')))
     except Exception as err:
         raise GetoptError('Invalid argument: %s' % err)
     if len(threshold) == 1:
