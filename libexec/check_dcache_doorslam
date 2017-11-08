@@ -46,7 +46,9 @@ def check(domain_name, door_name, warn_limit, crit_limit):
         print('Did not find %s in result.' % door_name)
         nagios_status = 3
     else:
-        print('%d cells matches %s-*' % (res.match_count, door_name))
+        print('%d cells matches %s-*|doorslam=%d;%d;%d;0;'
+              % (res.match_count, door_name,
+                 res.match_count, warn_limit, crit_limit))
         if res.match_count > crit_limit:
             nagios_status = 2
         elif res.match_count > warn_limit:
@@ -54,6 +56,7 @@ def check(domain_name, door_name, warn_limit, crit_limit):
         else:
             nagios_status = 0
     print('Source URL: %s' % url)
+    print('Limits: warning from %d, critical from %d' % (warn_limit, crit_limit))
     sys.exit(nagios_status)
 
 def main():
