@@ -40,7 +40,7 @@ tag_of_state = \
 class RestoreParser(HTMLParser):
     def __init__(self):
         HTMLParser.__init__(self)
-        self.result = []
+        self.result = None
         self._state = INIT
         self._hdr = None
         self._row = None
@@ -48,6 +48,7 @@ class RestoreParser(HTMLParser):
 
     def handle_starttag(self, tag, attrs):
         if (self._state, tag) in start_transitions:
+            self.result = []
             self._state = start_transitions[(self._state, tag)]
             if self._state == THEAD_TR:
                 self._hdr = []
@@ -171,6 +172,11 @@ def check(url, certfile = None, keyfile = None,
         print('Re-fetching and saving content to %s.' % ofp)
         for ln in fh:
             ofh.write(ln)
+        sys.exit(3)
+
+    if parser.result is None:
+        print('No restore data found.')
+        print('URL: %s' % url)
         sys.exit(3)
 
     # Update the database
