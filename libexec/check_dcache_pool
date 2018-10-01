@@ -1,8 +1,8 @@
 #! /usr/bin/python3
 import sys
 from getopt import gnu_getopt, GetoptError
-from ndgfnagios.dcacheinfo import load_pool
-from ndgfnagios.utils import \
+from dcache_nagios_plugins.dcacheinfo import load_pool
+from dcache_nagios_plugins.utils import \
     int_of_sizestr, float_of_timestr, float_of_ratiostr, \
     show_size, show_time, show_percent
 

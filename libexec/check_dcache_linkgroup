@@ -2,8 +2,8 @@
 import sys
 from getopt import gnu_getopt, GetoptError
 from xml.etree import cElementTree as etree
-from ndgfnagios.utils import show_size
-from ndgfnagios.urlopen import urlopen
+from dcache_nagios_plugins.utils import show_size
+from dcache_nagios_plugins.urlopen import urlopen
 
 
 def check_linkgroup(info_url, linkgroup, certkey = None, cert = None):

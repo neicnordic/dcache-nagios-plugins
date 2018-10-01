@@ -5,10 +5,10 @@
 # and non-precious space.
 
 import argparse, os, sys, time, traceback
-from ndgfnagios import tconf
-from ndgfnagios.utils import size_float, show_size
-from ndgfnagios.utils import counted_noun
-from ndgfnagios.dcacheinfo import load_poolgroups, load_pools, \
+from dcache_nagios_plugins import tconf
+from dcache_nagios_plugins.utils import size_float, show_size
+from dcache_nagios_plugins.utils import counted_noun
+from dcache_nagios_plugins.dcacheinfo import load_poolgroups, load_pools, \
                                   load_domain_poolnames
 
 class NagiosCommand(object):

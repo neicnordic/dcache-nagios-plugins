@@ -1,6 +1,7 @@
 #! /usr/bin/python3
 import sys
-from ndgfnagios.urlopen import urlopen
+
+from dcache_nagios_plugins.urlopen import urlopen
 from getopt import gnu_getopt, GetoptError
 from xml import sax
 
