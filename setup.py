@@ -1,12 +1,12 @@
 '''
-    Setup file for the package
+    Setup file for the package.
 '''
 
 __author__ = "Petter Urkedal, Vincent Garonne"
 __copyright__ = "Copyright 2018"
 __credits__ = ["Petter Urkedal"]
 __license__ = "Apache License, Version 2.0"
-__version__ = "0.0.6"
+__version__ = "0.0.7"
 __maintainer__ = "Vincent Garonne"
 __email__ = "vgaronne@gmail.com"
 __status__ = "Production"
@@ -26,7 +26,7 @@ setup(
     long_description_content_type="text/markdown",
     url="https://github.com/neicnordic/dcache-nagios-plugins/",
     license="Apache License, Version 2.0",
-    data_files=[('nagios/plugins/libexec/dcache_nagios_plugins/',
+    data_files=[('lib/nagios/plugins/',
                  glob("libexec/*"))],
     classifiers=[
         'Development Status :: 5 - Production/Stable',
@@ -40,4 +40,4 @@ setup(
         'Environment :: No Input/Output (Daemon)'],
     include_package_data=True,
     zip_safe=False,
-    packages=find_packages(),)
+    packages=find_packages())
