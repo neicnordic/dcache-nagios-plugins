@@ -2,4 +2,7 @@ include *.md
 include LICENSE.txt
 include MANIFEST.in
 include setup.py
-
+graft libexec
+prune .venv
+prune .DS_Store
+global-exclude *.pyc *.swp *~

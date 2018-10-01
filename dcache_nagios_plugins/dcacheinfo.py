@@ -41,8 +41,9 @@ class PoolInfo(object):
         self.space_used = None
         self.space_free = None
 
+
 class PoolgroupInfo(object):
-    def __init__(self, name, linkrefs = [], poolrefs = []):
+    def __init__(self, name, linkrefs=[], poolrefs=[]):
         self.name = name
         self.linkrefs = linkrefs
 
@@ -64,14 +65,14 @@ class PoolgroupInfo(object):
 
     def __repr__(self):
         return 'PoolgroupInfo(%r, %d, %d, %d, %d, %d, {%s}, {%s})' \
-            %(self.name,
-              self.space_total,
-              self.space_free,
-              self.space_removable,
-              self.space_precious,
-              self.space_used,
-              ', '.join(self.linkrefs),
-              ', '.join(self.poolrefs))
+            % (self.name,
+               self.space_total,
+               self.space_free,
+               self.space_removable,
+               self.space_precious,
+               self.space_used,
+               ', '.join(self.linkrefs),
+               ', '.join(self.poolrefs))
 
 def _scan_metric(metric_elt):
     t = metric_elt.get('type')
@@ -86,7 +87,7 @@ def _scan_metric(metric_elt):
         raise AssertionError('Unsupported type %s.'%t)
     return (metric_elt.get('name'), x)
 
-def load_pools(url, certkey = None, cert = None):
+def load_pools(url, certkey=None, cert=None):
     fh = urlopen(url, certkey = certkey, cert = cert)
     doc = etree.parse(fh)
     for e_p in doc.findall('.//' + DCACHE.pools + '/' + DCACHE.pool):
@@ -121,7 +122,7 @@ def load_pool(url, certkey = None, cert = None):
     else:
         raise RuntimeError('Request for single pool gave %d results.' % len(pools))
 
-def load_domain_poolnames(info_url, certkey = None, cert = None):
+def load_domain_poolnames(info_url, certkey=None, cert = None):
     fh = urlopen(info_url + '/domains', certkey = certkey, cert = cert)
     doc = etree.parse(fh)
     for domain_ele in doc.findall(DCACHE.domains + '/' + DCACHE.domain):
