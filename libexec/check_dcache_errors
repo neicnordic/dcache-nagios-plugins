@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#! /usr/bin/python3
 import re, sys
 from getopt import gnu_getopt, GetoptError
 from subprocess import Popen, PIPE
@@ -98,14 +98,14 @@ def check_url(url):
         issues.append('Some lines were not recognised, please update the probe.')
         status_code = max(status_code, 3)
     if status_code > 0:
-        print ' '.join(issues)
+        print(' '.join(issues))
     elif line_count < 20:
-        print 'The output is suspiciously short.'
-        print '%s gives only %d lines of output.'%(' '.join(cmd), line_count)
+        print('The output is suspiciously short.')
+        print('%s gives only %d lines of output.' % (' '.join(cmd), line_count))
         map(sys.stdout.write, msgs)
         status_code = 3
     else:
-        print 'Scanned %d lines'%line_count
+        print('Scanned %d lines' % line_count)
         status_code = 0
     map(sys.stdout.write, msgs)
     sys.exit(status_code)
@@ -134,7 +134,7 @@ try:
             base_url = 'http://%s:%d' % (host, port)
     if page_path is None:
         raise GetoptError('The -g option is mandatory.')
-except GetoptError, xc:
+except GetoptError as xc:
     sys.stderr.write('%s\n'%xc)
     sys.exit(3)
 check_url(base_url + page_path)
