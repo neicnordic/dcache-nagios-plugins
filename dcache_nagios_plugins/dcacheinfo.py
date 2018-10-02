@@ -1,4 +1,4 @@
-from ndgfnagios.urlopen import urlopen
+from dcache_nagios_plugins.urlopen import urlopen
 try: from xml.etree import cElementTree as etree
 except ImportError:
     from xml.etree import ElementTree as etree
