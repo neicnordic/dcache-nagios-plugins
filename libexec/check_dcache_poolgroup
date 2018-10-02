@@ -3,8 +3,7 @@ import sys
 from getopt import gnu_getopt, GetoptError
 from dcache_nagios_plugins.dcacheinfo import load_poolgroup
 from dcache_nagios_plugins.utils import \
-    int_of_sizestr, float_of_timestr, float_of_ratiostr, \
-    show_size, show_time, show_percent
+    int_of_sizestr, float_of_ratiostr, show_size, show_percent
 
 report_code = 0
 report_msgs = []

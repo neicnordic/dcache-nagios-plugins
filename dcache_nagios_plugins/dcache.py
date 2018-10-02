@@ -1,6 +1,4 @@
-import os
 import re
-import pipes
 
 class DCacheQueryError(Exception):
     pass

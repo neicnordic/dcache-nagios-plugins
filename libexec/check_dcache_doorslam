@@ -12,6 +12,7 @@ info_certkey = None
 class DoorCounter(sax.handler.ContentHandler):
 
     def __init__(self, domain_name, door_name):
+        sax.handler.ContentHandler.__init__(self)
         self._filter_prefix = door_name + '-'
         self._domain_name = domain_name
         self._door_name = door_name
@@ -93,6 +94,8 @@ def main():
             raise GetoptError('The --domain option is required.')
         if door_name is None:
             raise GetoptError('The --door option is required.')
+        if args != []:
+            raise GetoptError('No positional arguments accepted.')
     except GetoptError as exn:
         sys.stderr.write('%s\n' % exn)
         sys.exit(64)

@@ -211,7 +211,7 @@ class PoolgroupChecker(PoolsetChecker):
             if self._args.nonprecious_enabled:
                 r = self.status_for(g.name, self._args.nonprecious_service)
                 ckspace2(r, self._args.nonprecious_rlimit, self._args.nonprecious_alimit,
-                         g.nonprecious_space, 2, 'non-precious')
+                         g.nonprecious_space, 'non-precious')
         else:
             if self._args.free_enabled or self._args.nonprecious_enabled:
                 for s in set([self._args.free_service, self._args.nonprecious_service]):

@@ -43,9 +43,9 @@ class PoolInfo(object):
 
 
 class PoolgroupInfo(object):
-    def __init__(self, name, linkrefs=[], poolrefs=[]):
+    def __init__(self, name, linkrefs=None, poolrefs=None):
         self.name = name
-        self.linkrefs = linkrefs
+        self.linkrefs = linkrefs or []
 
         self.space_total = None
         self.space_free = None
@@ -53,7 +53,7 @@ class PoolgroupInfo(object):
         self.space_precious = None
         self.space_used = None
 
-        self.poolrefs = poolrefs
+        self.poolrefs = poolrefs or []
 
     @property
     def available_space(self):
