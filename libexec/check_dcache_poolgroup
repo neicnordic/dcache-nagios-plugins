@@ -59,77 +59,83 @@ def print_space(hdr, amount):
     else:
         sys.stdout.write('%s: %s\n' % (hdr, show_size(amount)))
 
-info_url = None
-certkey = None
-cert = None
-pgroup_name = None
-precious_threshold = None
-nonprecious_threshold = None
-precious_over_total_threshold = None
-nonprecious_over_total_threshold = None
+def main():
+    info_url = None
+    certkey = None
+    cert = None
+    pgroup_name = None
+    precious_threshold = None
+    nonprecious_threshold = None
+    precious_over_total_threshold = None
+    nonprecious_over_total_threshold = None
 
-try:
-    opts, args = gnu_getopt(sys.argv[1:], 'G:U:',
-        ['precious=', 'precious-over-total=',
-         'nonprecious=', 'nonprecious-over-total=',
-         'certkey=', 'cert='])
-    for opt, arg in opts:
-        if opt == '-G':
-            pgroup_name = arg
-        elif opt == '-U':
-            info_url = arg
-        elif opt == '--certkey':
-            certkey = arg
-        elif opt == '--cert':
-            cert = arg
-        elif opt == '--precious':
-            precious_threshold = threshold_arg(int_of_sizestr, arg)
-        elif opt == '--nonprecious':
-            nonprecious_threshold = threshold_arg(int_of_sizestr, arg)
-        elif opt == '--precious-over-total':
-            precious_over_total_threshold = \
-                threshold_arg(float_of_ratiostr, arg)
-        elif opt == '--nonprecious-over-total':
-            nonprecious_over_total_threshold = \
-                threshold_arg(float_of_ratiostr, arg)
-        else:
-            assert False
-    if info_url is None:
-        raise GetoptError('The -U option is required.')
-    if pgroup_name is None:
-        raise GetoptError('The -G option is required.')
-except GetoptError as exn:
-    sys.stderr.write('%s\n' % exn)
-    sys.exit(64)
+    try:
+        opts, args = gnu_getopt(sys.argv[1:], 'G:U:',
+            ['precious=', 'precious-over-total=',
+             'nonprecious=', 'nonprecious-over-total=',
+             'certkey=', 'cert='])
+        for opt, arg in opts:
+            if opt == '-G':
+                pgroup_name = arg
+            elif opt == '-U':
+                info_url = arg
+            elif opt == '--certkey':
+                certkey = arg
+            elif opt == '--cert':
+                cert = arg
+            elif opt == '--precious':
+                precious_threshold = threshold_arg(int_of_sizestr, arg)
+            elif opt == '--nonprecious':
+                nonprecious_threshold = threshold_arg(int_of_sizestr, arg)
+            elif opt == '--precious-over-total':
+                precious_over_total_threshold = \
+                    threshold_arg(float_of_ratiostr, arg)
+            elif opt == '--nonprecious-over-total':
+                nonprecious_over_total_threshold = \
+                    threshold_arg(float_of_ratiostr, arg)
+            else:
+                assert False
+        if info_url is None:
+            raise GetoptError('The -U option is required.')
+        if pgroup_name is None:
+            raise GetoptError('The -G option is required.')
+        if args != []:
+            raise GetoptError('No positional arguments expected.')
+    except GetoptError as exn:
+        sys.stderr.write('%s\n' % exn)
+        sys.exit(64)
 
-try:
-    pgroup = load_poolgroup(info_url + '/poolgroups/' + pgroup_name,
-                            certkey = certkey, cert = cert)
-except IOError as exn:
-    sys.stdout.write('Failed to fetch poolgroup info: %s' % exn)
-    sys.exit(3)
+    try:
+        pgroup = load_poolgroup(info_url + '/poolgroups/' + pgroup_name,
+                                certkey = certkey, cert = cert)
+    except IOError as exn:
+        sys.stdout.write('Failed to fetch poolgroup info: %s' % exn)
+        sys.exit(3)
 
-if pgroup is None:
-    sys.stdout.write('Poolgroup %s not found.' % pgroup_name)
-    sys.exit(2)
-else:
-    if pgroup.space_total is None:
-        report(2, 'Missing total space metric (at least).')
-    elif pgroup.space_total > 0:
-        report_msgs.append('total = %s' % show_size(pgroup.space_total))
-        if precious_threshold:
-            check_precious(pgroup, precious_threshold)
-        if nonprecious_threshold:
-            check_nonprecious(pgroup, nonprecious_threshold)
-        if precious_over_total_threshold:
-            check_precious_over_total(pgroup, precious_over_total_threshold)
-        if nonprecious_over_total_threshold:
-            check_nonprecious_over_total(pgroup, nonprecious_over_total_threshold)
+    if pgroup is None:
+        sys.stdout.write('Poolgroup %s not found.' % pgroup_name)
+        sys.exit(2)
     else:
-        report(2, 'No space in poolgroup.')
-    sys.stdout.write(', '.join(report_msgs) + '\n')
-    print_space('Total space', pgroup.space_total)
-    print_space('Precious space', pgroup.space_precious)
-    print_space('Used space', pgroup.space_used)
-    print_space('Free space', pgroup.space_free)
-    sys.exit(report_code)
+        if pgroup.space_total is None:
+            report(2, 'Missing total space metric (at least).')
+        elif pgroup.space_total > 0:
+            report_msgs.append('total = %s' % show_size(pgroup.space_total))
+            if precious_threshold:
+                check_precious(pgroup, precious_threshold)
+            if nonprecious_threshold:
+                check_nonprecious(pgroup, nonprecious_threshold)
+            if precious_over_total_threshold:
+                check_precious_over_total(pgroup, precious_over_total_threshold)
+            if nonprecious_over_total_threshold:
+                check_nonprecious_over_total(
+                        pgroup, nonprecious_over_total_threshold)
+        else:
+            report(2, 'No space in poolgroup.')
+        sys.stdout.write(', '.join(report_msgs) + '\n')
+        print_space('Total space', pgroup.space_total)
+        print_space('Precious space', pgroup.space_precious)
+        print_space('Used space', pgroup.space_used)
+        print_space('Free space', pgroup.space_free)
+        sys.exit(report_code)
+
+main()

@@ -88,79 +88,84 @@ def print_space(hdr, amount):
     else:
         sys.stdout.write('%s: %s\n' % (hdr, show_size(amount)))
 
-info_url = None
-certkey = None
-cert = None
-pool_name = None
-heartbeat_threshold = None
-precious_threshold = None
-nonprecious_threshold = None
-precious_over_total_threshold = None
-nonprecious_over_total_threshold = None
-try:
-    opts, args = gnu_getopt(sys.argv[1:], 'P:U:',
-        ['heartbeat=',
-         'precious=', 'precious-over-total=',
-         'nonprecious=', 'nonprecious-over-total=',
-         'certkey=', 'cert='])
-    for opt, arg in opts:
-        if opt == '-P':
-            pool_name = arg
-        elif opt == '-U':
-            info_url = arg
-        elif opt == '--certkey':
-            certkey = arg
-        elif opt == '--cert':
-            cert = arg
-        elif opt == '--heartbeat':
-            heartbeat_threshold = threshold_arg(float_of_timestr, arg)
-        elif opt == '--precious':
-            precious_threshold = threshold_arg(int_of_sizestr, arg)
-        elif opt == '--nonprecious':
-            nonprecious_threshold = threshold_arg(int_of_sizestr, arg)
-        elif opt == '--precious-over-total':
-            precious_over_total_threshold = \
-                threshold_arg(float_of_ratiostr, arg)
-        elif opt == '--nonprecious-over-total':
-            nonprecious_over_total_threshold = \
-                threshold_arg(float_of_ratiostr, arg)
-        else:
-            assert False
-    if info_url is None:
-        raise GetoptError('The -U option is required.')
-    if pool_name is None:
-        raise GetoptError('The -P option is required.')
-except GetoptError as err:
-    sys.stderr.write('%s\n' % err)
-    sys.exit(64)
+def main():
+    info_url = None
+    certkey = None
+    cert = None
+    pool_name = None
+    heartbeat_threshold = None
+    precious_threshold = None
+    nonprecious_threshold = None
+    precious_over_total_threshold = None
+    nonprecious_over_total_threshold = None
+    try:
+        opts, args = gnu_getopt(sys.argv[1:], 'P:U:',
+            ['heartbeat=',
+             'precious=', 'precious-over-total=',
+             'nonprecious=', 'nonprecious-over-total=',
+             'certkey=', 'cert='])
+        for opt, arg in opts:
+            if opt == '-P':
+                pool_name = arg
+            elif opt == '-U':
+                info_url = arg
+            elif opt == '--certkey':
+                certkey = arg
+            elif opt == '--cert':
+                cert = arg
+            elif opt == '--heartbeat':
+                heartbeat_threshold = threshold_arg(float_of_timestr, arg)
+            elif opt == '--precious':
+                precious_threshold = threshold_arg(int_of_sizestr, arg)
+            elif opt == '--nonprecious':
+                nonprecious_threshold = threshold_arg(int_of_sizestr, arg)
+            elif opt == '--precious-over-total':
+                precious_over_total_threshold = \
+                    threshold_arg(float_of_ratiostr, arg)
+            elif opt == '--nonprecious-over-total':
+                nonprecious_over_total_threshold = \
+                    threshold_arg(float_of_ratiostr, arg)
+            else:
+                assert False
+        if info_url is None:
+            raise GetoptError('The -U option is required.')
+        if pool_name is None:
+            raise GetoptError('The -P option is required.')
+        if args != []:
+            raise GetoptError('No positional arguments expected.')
+    except GetoptError as err:
+        sys.stderr.write('%s\n' % err)
+        sys.exit(64)
 
-try:
-    pool = load_pool(info_url + '/pools/' + pool_name,
-                     certkey = certkey, cert = cert)
-except IOError as exn:
-    sys.stderr.write('Failed to fetch pool info: %s' % exn)
-    sys.exit(3)
+    try:
+        pool = load_pool(info_url + '/pools/' + pool_name,
+                         certkey = certkey, cert = cert)
+    except IOError as exn:
+        sys.stderr.write('Failed to fetch pool info: %s' % exn)
+        sys.exit(3)
 
-if pool is None:
-    sys.stdout.write('Pool not found.')
-    sys.exit(2)
-else:
-    if pool.space_total:
-        report_msgs.append('total = %s' % show_size(pool.space_total))
-    if heartbeat_threshold:
-        check_heartbeat(pool, heartbeat_threshold)
-    if precious_threshold:
-        check_precious(pool, precious_threshold)
-    if nonprecious_threshold:
-        check_nonprecious(pool, nonprecious_threshold)
-    if precious_over_total_threshold:
-        check_precious_over_total(pool, precious_over_total_threshold)
-    if nonprecious_over_total_threshold:
-        check_nonprecious_over_total(pool, nonprecious_over_total_threshold)
-    sys.stdout.write(', '.join(report_msgs) + '\n')
-    print_time('Heartbeat', pool.last_heartbeat)
-    print_space('Total space', pool.space_total)
-    print_space('Precious space', pool.space_precious)
-    print_space('Used space', pool.space_used)
-    print_space('Free space', pool.space_free)
-    sys.exit(report_code)
+    if pool is None:
+        sys.stdout.write('Pool not found.')
+        sys.exit(2)
+    else:
+        if pool.space_total:
+            report_msgs.append('total = %s' % show_size(pool.space_total))
+        if heartbeat_threshold:
+            check_heartbeat(pool, heartbeat_threshold)
+        if precious_threshold:
+            check_precious(pool, precious_threshold)
+        if nonprecious_threshold:
+            check_nonprecious(pool, nonprecious_threshold)
+        if precious_over_total_threshold:
+            check_precious_over_total(pool, precious_over_total_threshold)
+        if nonprecious_over_total_threshold:
+            check_nonprecious_over_total(pool, nonprecious_over_total_threshold)
+        sys.stdout.write(', '.join(report_msgs) + '\n')
+        print_time('Heartbeat', pool.last_heartbeat)
+        print_space('Total space', pool.space_total)
+        print_space('Precious space', pool.space_precious)
+        print_space('Used space', pool.space_used)
+        print_space('Free space', pool.space_free)
+        sys.exit(report_code)
+
+main()

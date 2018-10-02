@@ -20,38 +20,43 @@ def check_linkgroup(info_url, linkgroup, certkey = None, cert = None):
     if av < 0: sys.exit(2)
     sys.exit(0)
 
-info_host = None
-info_port = 2288
-info_url = None
-certkey = None
-cert = None
-linkgroup = None
-try:
-    opts, args = gnu_getopt(sys.argv[1:], 'H:p:U:l:',
-                            ['linkgroup=', 'certkey=', 'cert='])
-    for opt, arg in opts:
-        if opt == '-H':
-            info_host = arg
-        elif opt == '-p':
-            info_port = arg
-        elif opt == '-U':
-            info_url = arg
-        elif opt in ['-l', '--linkgroup']:
-            linkgroup = int(arg)
-        elif opt == '--certkey':
-            certkey = arg
-        elif opt == '--cert':
-            cert = arg
-        else:
-            assert False
-    if info_url is None:
-        if info_host is None:
-            raise GetoptError('Either -H or -U must be specified.')
-        info_url = 'http://%s:%d/info' % (info_host, info_port)
-    if linkgroup is None:
-        raise GetoptError('The linkgroup must be specified.')
-except GetoptError as err:
-    sys.stderr.write('%s\n'%err)
-    sys.exit(3)
+def main():
+    info_host = None
+    info_port = 2288
+    info_url = None
+    certkey = None
+    cert = None
+    linkgroup = None
+    try:
+        opts, args = gnu_getopt(sys.argv[1:], 'H:p:U:l:',
+                                ['linkgroup=', 'certkey=', 'cert='])
+        for opt, arg in opts:
+            if opt == '-H':
+                info_host = arg
+            elif opt == '-p':
+                info_port = arg
+            elif opt == '-U':
+                info_url = arg
+            elif opt in ['-l', '--linkgroup']:
+                linkgroup = int(arg)
+            elif opt == '--certkey':
+                certkey = arg
+            elif opt == '--cert':
+                cert = arg
+            else:
+                assert False
+        if info_url is None:
+            if info_host is None:
+                raise GetoptError('Either -H or -U must be specified.')
+            info_url = 'http://%s:%d/info' % (info_host, info_port)
+        if linkgroup is None:
+            raise GetoptError('The linkgroup must be specified.')
+        if args != []:
+            raise GetoptError('No positional arguments expected.')
+    except GetoptError as err:
+        sys.stderr.write('%s\n'%err)
+        sys.exit(3)
 
-check_linkgroup(info_url, linkgroup, certkey = certkey, cert = cert)
+    check_linkgroup(info_url, linkgroup, certkey = certkey, cert = cert)
+
+main()

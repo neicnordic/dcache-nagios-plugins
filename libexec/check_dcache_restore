@@ -226,12 +226,6 @@ def check(url, certfile = None, keyfile = None,
     restore_state.close()
     sys.exit(0)
 
-url = None
-keyfile = None
-certfile = None
-critical_limit = timedelta(0, 12 * 3600)
-warning_limit = timedelta(0, 8 * 3600)
-
 def parse_timedelta(s):
     if s.endswith('h'):
         return timedelta(0, int(s[:-1]) * 3600)
@@ -240,26 +234,37 @@ def parse_timedelta(s):
     else:
         return timedelta(0, int(s))
 
-try:
-    opts, args = gnu_getopt(sys.argv[1:], 'U:c:w:', ['certkey=', 'cert='])
-    for opt, arg in opts:
-        if opt == '-c':
-            critical_limit = parse_timedelta(arg)
-        elif opt == '-w':
-            warning_limit = parse_timedelta(arg)
-        elif opt == '-U':
-            url = arg
-        elif opt == '--certkey':
-            keyfile = arg
-        elif opt == '--cert':
-            certfile = arg
-        else:
-            assert False
-    if url is None:
-        raise GetoptError('Missing mandatory -U option.')
-except GetoptError as err:
-    sys.stderr.write('%s\n' % err)
-    sys.exit(3)
+def main():
+    url = None
+    keyfile = None
+    certfile = None
+    critical_limit = timedelta(0, 12 * 3600)
+    warning_limit = timedelta(0, 8 * 3600)
 
-check(url, certfile = certfile, keyfile = keyfile,
-      critical_limit = critical_limit, warning_limit = warning_limit)
+    try:
+        opts, args = gnu_getopt(sys.argv[1:], 'U:c:w:', ['certkey=', 'cert='])
+        for opt, arg in opts:
+            if opt == '-c':
+                critical_limit = parse_timedelta(arg)
+            elif opt == '-w':
+                warning_limit = parse_timedelta(arg)
+            elif opt == '-U':
+                url = arg
+            elif opt == '--certkey':
+                keyfile = arg
+            elif opt == '--cert':
+                certfile = arg
+            else:
+                assert False
+        if url is None:
+            raise GetoptError('Missing mandatory -U option.')
+        if args != []:
+            raise GetoptError('No positional arguments expected.')
+    except GetoptError as err:
+        sys.stderr.write('%s\n' % err)
+        sys.exit(3)
+
+    check(url, certfile = certfile, keyfile = keyfile,
+          critical_limit = critical_limit, warning_limit = warning_limit)
+
+main()
