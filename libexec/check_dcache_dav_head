@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 '''
     Probe to check DAV with HEAD Operation.
@@ -53,8 +53,9 @@ if __name__ == '__main__':
     try:
         r = s.head(args.url)
         if r.status_code == 200:
-            print(r.headers)
+            print('DAV is working')
     except Exception as e:
-        print e
+        print('DAV not is working')
+        print('Detailed error:' + str(e))
         sys.exit(CRITICAL)
     sys.exit(OK)
