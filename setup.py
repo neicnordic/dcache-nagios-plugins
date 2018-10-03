@@ -39,5 +39,8 @@ setup(
         'Programming Language :: Python :: 2.7',
         'Environment :: No Input/Output (Daemon)'],
     include_package_data=True,
+    install_requires=[
+        'requests',
+        ],
     zip_safe=False,
     packages=find_packages())

@@ -1,0 +1,60 @@
+#!/usr/bin/env python
+
+'''
+    Probe to check DAV with HEAD Operation.
+'''
+
+import argparse
+import os
+import requests
+import sys
+
+from requests.packages.urllib3 import disable_warnings
+
+OK, WARNING, CRITICAL, UNKNOWN = 0, 1, 2, 3
+
+
+def get_parser():
+    '''
+    Get parser
+    '''
+    oparser = argparse.ArgumentParser(
+        prog=os.path.basename(sys.argv[0]),
+        add_help=True)
+
+    oparser.add_argument(
+        '--url', dest="url", help="The service url.", required=True)
+    oparser.add_argument(
+        '--proxy', dest='proxy',
+        default=os.environ.get(
+            'X509_USER_PROXY',
+            '/tmp/x509up_u' + str(os.getuid())),
+        help='Client X509 proxy file.')
+    oparser.add_argument(
+        '--ca-certificate', dest='ca_certificate',
+        default=None,
+        help='CA certificate to verify peer against (SSL).')
+    return oparser
+
+
+if __name__ == '__main__':
+
+    oparser = get_parser()
+    args = oparser.parse_args(sys.argv[1:])
+
+    s = requests.Session()
+    s.cert = args.proxy
+    if args.ca_certificate:
+        s.verify = args.ca_certificate
+    else:
+        s.verify = False
+        disable_warnings()
+
+    try:
+        r = s.head(args.url)
+        if r.status_code == 200:
+            print(r.headers)
+    except Exception as e:
+        print e
+        sys.exit(CRITICAL)
+    sys.exit(OK)
